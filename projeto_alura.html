@@ -1,0 +1,2701 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guia de Estudo AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        /* Estilos adicionais para rolagem horizontal dos cartões */
+        .horizontal-scroll-container {
+            display: flex; /* Usa flexbox para layout horizontal */
+            overflow-x: auto; /* Permite rolagem horizontal */
+            padding-bottom: 10px; /* Espaço na parte inferior para a barra de rolagem */
+            cursor: grab; /* Cursor padrão para indicar que pode ser arrastado */
+            user-select: none; /* Impede seleção de texto durante o arrasto */
+            -webkit-user-select: none; /* Para navegadores Webkit */
+            -moz-user-select: none; /* Para Firefox */
+            -ms-user-select: none; /* Para IE/Edge */
+        }
+        .horizontal-scroll-container.active-drag {
+             cursor: grabbing; /* Cursor quando está sendo arrastado */
+        }
+        .topic-card {
+            width: 180px; /* Largura fixa para os cartões */
+            margin-right: 10px; /* Espaço entre os cartões */
+            white-space: normal; /* Permite que o texto dentro do cartão quebre linha */
+            flex-shrink: 0; /* Impede que os cartões encolham, forçando a rolagem */
+            /* Estilos do Tailwind mantidos */
+            /* background-color: white; /* Removido para usar cor dinâmica */
+            border-radius: 0.375rem; /* rounded-md */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* shadow-md */
+            padding: 1rem; /* p-4 */
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out; /* transition */
+            display: flex; /* Adicionado flexbox para alinhar conteúdo */
+            flex-direction: column; /* Conteúdo em coluna */
+            justify-content: space-between; /* Espaço entre título e score */
+        }
+        .topic-card:hover { /* hover:bg-gray-100 */
+            /* background-color: #f3f4f6; /* Removido para não interferir na cor dinâmica */
+            filter: brightness(0.95); /* Escurece um pouco no hover */
+        }
+        /* Estilo para o título do cartão - FONTE DIMINUÍDA */
+        .topic-card h3 {
+            font-size: 0.875rem; /* Equivalente a text-sm no Tailwind (14px) */
+            font-weight: 600; /* font-semibold */
+            margin-bottom: 0.5rem; /* mb-2 */
+            white-space: normal; /* Garante que o texto quebre linha dentro do título */
+            overflow: hidden; /* Esconde o texto que excede a largura */
+            text-overflow: ellipsis; /* Adiciona reticências se o texto for muito longo */
+            display: -webkit-box; /* Para limitar o número de linhas */
+            -webkit-line-clamp: 2; /* Limita a 2 linhas */
+            -webkit-box-orient: vertical;
+            color: #1f2937; /* Cor do texto padrão */
+        }
+         .topic-card p {
+             color: #1f2937; /* Cor do texto padrão para o score */
+         }
+
+
+        /* Esconde a barra de rolagem em alguns navegadores */
+        .horizontal-scroll-container::-webkit-scrollbar {
+            display: none;
+        }
+        .horizontal-scroll-container {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+
+        /* Estilos para as bolhas de mensagem */
+        .message-bubble {
+            max-width: 80%; /* Largura máxima da bolha */
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .user-message {
+            background-color: #bfdbfe; /* Azul claro para mensagens do usuário */
+            align-self: flex-end; /* Alinha à direita */
+        }
+        .bot-message {
+            background-color: #e5e7eb; /* Cinza claro para mensagens do bot */
+            align-self: flex-start; /* Alinha à esquerda */
+        }
+
+        /* Estilos para o Quadro Branco e Post-its */
+        #whiteboard {
+            position: relative; /* Necessário para posicionar os post-its */
+            width: 100%;
+            height: 400px; /* Altura fixa para o quadro branco, ajuste conforme necessário */
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow: hidden; /* Esconde conteúdo que ultrapassa os limites */
+            z-index: 0; /* Z-index padrão para o quadro branco */
+            touch-action: none; /* Desabilita ações de toque padrão como rolagem/zoom */
+        }
+
+        .post-it {
+            position: absolute; /* Posicionamento absoluto dentro do quadro branco */
+            width: 120px; /* Tamanho do post-it */
+            height: 120px;
+            background-color: #a7f3d0; /* Verde claro */
+            border-radius: 4px;
+            padding: 8px;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+            cursor: grab; /* Cursor de arrastar */
+            /* resize: both; /* Removido para simplificar o arrasto */
+            overflow: hidden; /* Esconde o que ultrapassa */
+            z-index: 2; /* Post-its acima do canvas */
+            touch-action: none; /* Desabilita ações de toque padrão no post-it */
+        }
+
+        .post-it textarea {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+            resize: none; /* Impede redimensionamento interno */
+            outline: none; /* Remove a borda de foco */
+            font-size: 14px;
+        }
+
+        .post-it .post-it-text {
+             width: 100%;
+             height: 100%;
+             white-space: pre-wrap; /* Mantém quebras de linha */
+             word-wrap: break-word; /* Quebra palavras longas */
+             font-size: 14px;
+             overflow-y: auto; /* Adiciona scroll se o texto for muito longo */
+             color: black; /* Cor do texto padrão */
+        }
+
+        /* Estilos para o handle de redimensionamento */
+        .resize-handle {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 15px; /* Área clicável do handle */
+            height: 15px;
+            cursor: se-resize; /* Cursor de redimensionamento diagonal */
+            z-index: 3; /* Acima do conteúdo do post-it */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: flex-end;
+            padding: 2px; /* Espaço para os riscos */
+        }
+
+        .resize-handle .line {
+            width: 8px; /* Largura dos riscos */
+            height: 2px; /* Espessura dos riscos */
+            background-color: gray;
+            margin-top: 1px; /* Espaço entre os riscos */
+        }
+
+        .resize-handle .line:nth-child(1) {
+            width: 4px; /* Primeiro risco menor */
+        }
+         .resize-handle .line:nth-child(2) {
+             width: 8px; /* Segundo risco maior */
+         }
+
+
+        .tool-icon {
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        .tool-icon:hover:not(:disabled) {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .tool-icon.active {
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .tool-icon:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+
+        .picker-container {
+            display: flex;
+            margin-top: 8px;
+            padding: 8px;
+            background-color: white;
+            border-radius: 4逊px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            position: absolute; /* Necessário para z-index */
+            z-index: 10; /* Z-index alto para sobrepor o quadro branco */
+        }
+
+        .color-option, .size-option {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            margin-right: 8px;
+            cursor: pointer;
+            border: 1px solid #ccc; /* Borda padrão */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .color-option.white {
+             background-color: white;
+             border-color: black; /* Borda preta para o branco */
+        }
+         .color-option.black {
+             background-color: black;
+             color: white; /* Texto branco para o preto (se aplicável) */
+         }
+
+         /* Estilos para os círculos de tamanho */
+         .size-circle {
+             background-color: gray;
+             border-radius: 50%; /* Torna o div um círculo */
+         }
+         .size-option[data-size="small"] .size-circle { width: 4px; height: 4px; }
+         .size-option[data-size="medium"] .size-circle { width: 8px; height: 8px; }
+         .size-option[data-size="large"] .size-circle { width: 12px; height: 12px; }
+         .size-option[data-size="xlarge"] .size-circle { width: 16px; height: 16px; }
+         .size-option[data-size="xxlarge"] .size-circle { width: 20px; height: 20px; }
+
+
+        /* Estilos para a área de desenho (Canvas) */
+        #drawing-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1; /* Desenho abaixo dos post-its, mas acima do quadro branco */
+        }
+
+
+        /* Esconde as views por padrão, JavaScript irá gerenciar a visibilidade */
+        .view {
+            display: none;
+            width: 100%; /* Views devem ocupar a largura total */
+        }
+        .view.active {
+            display: flex; /* Usa flexbox para layout */
+            flex-direction: column;
+            min-height: 100vh; /* Ocupa pelo menos a altura total da viewport */
+        }
+
+        /* Estilos para o indicador de digitação */
+        .typing-indicator {
+            display: inline-flex; /* Usa flexbox para alinhar os pontos */
+            align-items: center;
+            justify-content: center;
+            background-color: #e5e7eb; /* Cor de fundo similar à bolha do bot */
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            align-self: flex-start; /* Alinha à esquerda como a bolha do bot */
+        }
+
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background-color: #6b7280; /* Cor dos pontos */
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: pulse 1.4s infinite ease-in-out both;
+        }
+
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0s; }
+
+        @keyframes pulse {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* Novos estilos para a barra lateral de fundamentos */
+        .chat-content-container {
+            display: flex;
+            flex-grow: 1; /* Permite que o contêiner de conteúdo ocupe o espaço restante */
+            overflow: hidden; /* Esconde o conteúdo que transborda */
+        }
+
+        .fundamentals-sidebar {
+            width: 200px; /* Largura fixa para a barra lateral */
+            background-color: #f3f4f6; /* bg-gray-100 */
+            padding: 1rem; /* p-4 */
+            overflow-y: auto; /* Adiciona rolagem vertical se o conteúdo exceder a altura */
+            flex-shrink: 0; /* Impede que a barra lateral encolha */
+             border-right: 1px solid #d1d5db; /* Borda sutil à direita */
+        }
+
+        .fundamentals-sidebar h3 {
+            font-size: 1rem; /* text-lg */
+            font-weight: 600; /* font-semibold */
+            margin-bottom: 1rem; /* mb-4 */
+        }
+
+        .fundamental-item {
+            background-color: #e5e7eb; /* bg-gray-200 */
+            border-radius: 0.25rem; /* rounded-md */
+            padding: 0.75rem; /* p-3 */
+            margin-bottom: 0.75rem; /* mb-3 */
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative; /* Para posicionar a barra de progresso */
+            overflow: hidden; /* Garante que a barra de progresso não vaze */
+        }
+
+        .fundamental-item .progress-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background-color: #34d399; /* bg-green-400 */
+            transition: width 0.5s ease-in-out; /* Animação suave da barra */
+            z-index: 1; /* Abaixo do conteúdo do item */
+        }
+
+        .fundamental-item .content {
+            position: relative; /* Acima da barra de progresso */
+            z-index: 2;
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            align-items: center;
+        }
+
+        .fundamental-item .fundamental-name {
+            font-size: 0.875rem; /* text-sm */
+            font-weight: 500; /* font-medium */
+            color: #1f2937; /* text-gray-800 */
+            flex-grow: 1; /* Permite que o nome ocupe o espaço disponível */
+            margin-right: 0.5rem; /* Espaço entre o nome e a porcentagem */
+        }
+
+        .fundamental-item .fundamental-percentage {
+            font-size: 0.875rem; /* text-sm */
+            font-weight: 600; /* font-semibold */
+            color: #1f2937; /* text-gray-800 */
+        }
+
+        /* Estilos para a área de mensagens no chat view */
+        #chat-messages {
+             flex-grow: 1;
+             overflow-y: auto;
+             padding: 1rem;
+             space-y-4: ; /* Tailwind class */
+             flex-direction: column;
+             display: flex; /* Garante que o flexbox seja aplicado */
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <div id="study-guide-view" class="view active p-4">
+        <header class="bg-blue-600 text-white p-4 rounded-md mb-6 flex justify-between items-center">
+            <h1 class="text-2xl font-bold">GUIA DE ESTUDO</h1>
+            <i class="ph ph-magnifying-glass text-2xl"></i>
+        </header>
+
+        <main class="flex-grow overflow-y-auto">
+            <div class="mb-6 flex items-center bg-white rounded-full shadow-md p-2">
+                <input type="text" id="learn-search-input" placeholder="O que você quer aprender hoje ?" class="flex-grow p-2 bg-transparent focus:outline-none">
+                <i class="ph ph-magnifying-glass text-gray-500 text-xl mr-2"></i>
+            </div>
+
+            <section class="mb-6">
+                 <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-xl font-semibold">Lembretes</h2>
+                     </div>
+
+                <div class="bg-gray-200 rounded-md p-4">
+                    <div class="flex space-x-4 mb-4">
+                        <i class="ph ph-plus text-2xl tool-icon" id="add-postit-tool"></i> <div class="relative">
+                             <i class="ph ph-pencil text-2xl tool-icon" id="pencil-tool"></i> <div id="pencil-color-picker" class="picker-container absolute top-full left-0 mt-2 hidden">
+                                 <div class="color-option white" data-color="white"></div>
+                                 <div class="color-option black" data-color="black"></div>
+                                 <div class="color-option" style="background-color: limegreen;" data-color="limegreen"></div>
+                                 <div class="color-option" style="background-color: orange;" data-color="orange"></div>
+                                 <div class="color-option" style="background-color: yellow;" data-color="yellow"></div>
+                                 <div class="color-option" style="background-color: pink;" data-color="pink"></div>
+                                 <div class="color-option" style="background-color: red;" data-color="red"></div>
+                             </div>
+                        </div>
+                         <i class="ph ph-trash text-2xl tool-icon" id="trash-tool"></i> <div class="relative">
+                            <i class="ph ph-paint-brush text-2xl tool-icon" id="brush-tool"></i> <div id="brush-color-picker" class="picker-container absolute top-full left-0 mt-2 hidden">
+                                <div class="color-option white" data-color="white"></div>
+                                <div class="color-option black" data-color="black"></div>
+                                <div class="color-option" style="background-color: limegreen;" data-color="limegreen"></div>
+                                <div class="color-option" style="background-color: orange;" data-color="orange"></div>
+                                <div class="color-option" style="background-color: yellow;" data-color="yellow"></div>
+                                <div class="color-option" style="background-color: pink;" data-color="pink"></div>
+                                <div class="color-option" style="background-color: red;" data-color="red"></div>
+                            </div>
+                            <div id="brush-size-picker" class="picker-container absolute top-full left-0 mt-2 hidden" style="margin-top: 60px;"> <div class="size-option" data-size="small"><div class="size-circle"></div></div>
+                                <div class="size-option" data-size="medium"><div class="size-circle"></div></div>
+                                <div class="size-option" data-size="large"><div class="size-circle"></div></div>
+                                <div class="size-option" data-size="xlarge"><div class="size-circle"></div></div>
+                                <div class="size-option" data-size="xxlarge"><div class="size-circle"></div></div>
+                            </div>
+                         </div>
+                         <div class="relative">
+                            <i class="ph ph-eraser text-2xl tool-icon" id="eraser-tool"></i> <div id="eraser-size-picker" class="picker-container absolute top-full left-0 mt-2 hidden">
+                                <div class="size-option" data-size="small"><div class="size-circle"></div></div>
+                                <div class="size-option" data-size="medium"><div class="size-circle"></div></div>
+                                <div class="size-option" data-size="large"><div class="size-circle"></div></div>
+                                <div class="size-option" data-size="xlarge"><div class="size-circle"></div></div>
+                                <div class="size-option" data-size="xxlarge"><div class="size-circle"></div></div>
+                            </div>
+                         </div>
+                        <button id="undo-tool" class="tool-icon" disabled>
+                            <i class="ph ph-arrow-counter-clockwise text-2xl"></i>
+                        </button>
+                        <button id="redo-tool" class="tool-icon" disabled>
+                            <i class="ph ph-arrow-clockwise text-2xl"></i>
+                         </button>
+                         <button id="prev-whiteboard-tool" class="tool-icon" disabled>
+                             <i class="ph ph-arrow-left text-2xl"></i>
+                         </button>
+                         <button id="next-whiteboard-tool" class="tool-icon">
+                             <i class="ph ph-arrow-right text-2xl"></i>
+                         </button>
+                    </div>
+
+                    <div id="whiteboard">
+                        <canvas id="drawing-canvas"></canvas>
+                        </div>
+                </div>
+            </section>
+
+            <div class="mb-6 flex items-center bg-white rounded-full shadow-md p-2">
+                <input type="text" id="topic-search-input" placeholder="pesquise a conversa por tópico" class="flex-grow p-2 bg-transparent focus:outline-none">
+                <i class="ph ph-magnifying-glass text-gray-500 text-xl mr-2"></i>
+            </div>
+
+
+            <section class="mb-8">
+                <h2 class="text-xl font-semibold mb-4">Temas de Conversa</h2>
+                <div id="topic-cards-container" class="horizontal-scroll-container flex">
+                    </div>
+            </section>
+
+            </main>
+    </div>
+
+    <div id="chat-view" class="view p-4 flex-col">
+        <header class="bg-blue-600 text-white p-4 rounded-md mb-4 flex items-center">
+            <button id="back-to-guide-from-chat" class="mr-4 p-2 rounded-full hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+            </button>
+            <h1 id="chat-title" class="text-xl font-bold">Nome do Chat</h1>
+        </header>
+
+        <div class="chat-content-container flex-grow">
+            <aside class="fundamentals-sidebar">
+                <h3>Fundamentos</h3>
+                <div id="fundamentals-list">
+                    </div>
+            </aside>
+
+            <main class="flex-grow flex flex-col">
+                 <div id="chat-messages" class="flex-grow overflow-y-auto p-4 space-y-4 flex flex-col">
+                     </div>
+
+                 <footer class="p-4 bg-white rounded-md shadow-md mt-4">
+                     <div class="flex items-center">
+                         <input type="text" id="message-input" placeholder="Digite sua mensagem..." class="flex-grow p-3 rounded-full bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 mr-2">
+                         <button id="send-button" class="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-full shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 12h14" />
+                             </svg>
+                         </button>
+                     </div>
+                 </footer>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuração do Chatbot ---
+        // Persona do Chatbot: assistente de estudos, focado em conhecimento, evitando assuntos pessoais, mas educado.
+        const chatbotPersona = "assistente de estudos, focado em conhecimento, evitando assuntos pessoais, mas educado";
+
+        // --- SUA CHAVE DE API DO GEMINI ---
+        const GEMINI_API_KEY = 'AIzaSyDHftxe23OFIArD_sQH1uFCLM8MeWcCnZk'; // SUA CHAVE DE API INSERIDA AQUI
+
+        // Dados para armazenar os temas/chats
+        let topics = []; // Começa vazio por padrão
+        let currentChatId = null; // Armazena o ID do chat atual
+
+        // Referências aos elementos da UI
+        const studyGuideView = document.getElementById('study-guide-view');
+        const chatView = document.getElementById('chat-view');
+        const topicCardsContainer = document.getElementById('topic-cards-container');
+        const chatTitle = document.getElementById('chat-title');
+        const chatMessages = document.getElementById('chat-messages');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const backToGuideFromChatButton = document.getElementById('back-to-guide-from-chat');
+        const learnSearchInput = document.getElementById('learn-search-input'); // Referência à primeira barra de pesquisa
+        const topicSearchInput = document.getElementById('topic-search-input'); // Referência à segunda barra de pesquisa
+        const fundamentalsList = document.getElementById('fundamentals-list'); // Referência à lista de fundamentos
+
+        // Elementos do Quadro Branco
+        const whiteboard = document.getElementById('whiteboard');
+        const addPostItTool = document.getElementById('add-postit-tool');
+        const pencilTool = document.getElementById('pencil-tool');
+        const trashTool = document.getElementById('trash-tool');
+        const brushTool = document.getElementById('brush-tool');
+        const eraserTool = document.getElementById('eraser-tool');
+        const undoTool = document.getElementById('undo-tool');
+        const redoTool = document.getElementById('redo-tool');
+        const prevWhiteboardTool = document.getElementById('prev-whiteboard-tool');
+        const nextWhiteboardTool = document.getElementById('next-whiteboard-tool');
+        const pencilColorPicker = document.getElementById('pencil-color-picker');
+        const brushColorPicker = document.getElementById('brush-color-picker');
+        const brushSizePicker = document.getElementById('brush-size-picker');
+        const eraserSizePicker = document.getElementById('eraser-size-picker');
+        const colorOptions = document.querySelectorAll('.color-option');
+        const sizeOptions = document.querySelectorAll('.size-option'); // Corrigido o seletor aqui
+        const drawingCanvas = document.getElementById('drawing-canvas');
+        const ctx = drawingCanvas.getContext('2d');
+
+        let activeTool = null; // Armazena a ferramenta ativa ('add-postit', 'pencil', 'trash', 'brush', 'eraser')
+        let selectedColor = 'black'; // Cor atual para pincel ou post-it
+        let selectedSize = 5; // Tamanho inicial do pincel/borracha (corresponde a 'small')
+        let isDrawing = false; // Flag para o modo de desenho
+        let lastX = 0;
+        let lastY = 0;
+        let currentStrokePoints = []; // Pontos do traço de desenho atual
+        let originalPostItText = ''; // Armazena o texto original do post-it antes de editar
+
+        // Variáveis para o arrasto e redimensionamento combinado
+        let isDraggingPostIt = false;
+        let isResizingPostIt = false;
+        let activePostIt = null;
+        let activeResizeHandle = null;
+        // Offset para o arrasto, calculado no mousedown/touchstart
+        let xOffset = 0;
+        let yOffset = 0;
+        let initialMouseX = 0;
+        let initialMouseY = 0;
+        let initialPostItWidth = 0;
+        let initialPostItHeight = 0;
+        let startLeft = '0px'; // Posição inicial para desfazer/refazer arrasto
+        let startTop = '0px'; // Posição inicial para desfazer/refazer arrasto
+
+
+        // Mapeamento de tamanho para valor numérico
+        const sizeMap = {
+            'small': 5,
+            'medium': 10,
+            'large': 15,
+            'xlarge': 20,
+            'xxlarge': 25,
+        };
+
+        // Array para armazenar o estado de múltiplos quadros brancos
+        const whiteboards = [];
+        let currentWhiteboardIndex = 0; // Índice do quadro branco atual
+
+        // Inicializa o primeiro quadro branco (sempre começa com pelo menos um)
+        whiteboards.push({
+            postIts: [], // Array para armazenar dados dos post-its
+            drawingStrokes: [], // Array para armazenar dados dos traços de desenho
+            undoStack: [], // Histórico de undo para este quadro
+            redoStack: [] // Histórico de redo para este quadro
+        });
+
+        // Função para obter o objeto de estado do quadro branco atual
+        function getCurrentWhiteboard() {
+            return whiteboards[currentWhiteboardIndex];
+        }
+
+        // Função para adicionar uma ação ao histórico do quadro branco atual
+        function addActionToHistory(action) {
+             const currentBoard = getCurrentWhiteboard();
+             currentBoard.undoStack.push(action);
+             currentBoard.redoStack.length = 0; // Limpa a pilha de refazer quando uma nova ação é feita
+             updateUndoRedoButtons();
+             console.log('Ação adicionada ao histórico:', action); // Log
+        }
+
+        // Função para atualizar o estado dos botões Desfazer/Refazer com base no quadro branco atual
+        function updateUndoRedoButtons() {
+             const currentBoard = getCurrentWhiteboard();
+            undoTool.disabled = currentBoard.undoStack.length === 0;
+            redoTool.disabled = currentBoard.redoStack.length === 0;
+             // Atualiza o estado dos botões de navegação
+             prevWhiteboardTool.disabled = currentWhiteboardIndex === 0;
+             nextWhiteboardTool.disabled = false; // Sempre permite criar um novo quadro
+        }
+
+        // Função para redesenhar todos os traços de desenho para o quadro branco atual
+        function redrawDrawing() {
+             const currentBoard = getCurrentWhiteboard();
+            ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height); // Limpa o canvas
+             currentBoard.drawingStrokes.forEach(stroke => {
+                drawStroke(stroke); // Desenha cada traço armazenado
+            });
+        }
+
+        // Função para desenhar um único traço dados seus dados
+        function drawStroke(stroke) {
+            if (stroke.points.length < 2) return; // Precisa de pelo menos dois pontos para desenhar uma linha
+
+            ctx.beginPath();
+            ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+
+            stroke.points.forEach(point => {
+                ctx.lineTo(point.x, point.y);
+            });
+
+            if (stroke.tool === 'brush') {
+                ctx.strokeStyle = stroke.color;
+                ctx.lineWidth = stroke.size;
+                ctx.lineCap = 'round';
+                ctx.globalCompositeOperation = 'source-over';
+            } else if (stroke.tool === 'eraser') {
+                ctx.strokeStyle = whiteboard.style.backgroundColor || 'white'; // A cor da borracha é o fundo
+                ctx.lineWidth = stroke.size;
+                ctx.lineCap = 'round';
+                ctx.globalCompositeOperation = 'destination-out';
+            }
+
+            ctx.stroke();
+
+            // Reseta o modo de composição após desenhar o traço da borracha
+            if (stroke.tool === 'eraser') {
+                ctx.globalCompositeOperation = 'source-over';
+            }
+        }
+
+        // Função para exibir uma view e esconder as outras
+        function showView(viewId) {
+            const views = [studyGuideView, chatView];
+            views.forEach(view => {
+                if (view.id === viewId) {
+                    view.classList.add('active');
+                } else {
+                    view.classList.remove('active');
+                }
+            });
+
+            // Redimensionar o canvas se a tela do guia de estudo for ativada
+            if (viewId === 'study-guide-view') {
+                 resizeCanvas();
+                 // Redesenhar o conteúdo do canvas ao voltar para a tela
+                 redrawDrawing();
+            }
+        }
+
+        // Função para redimensionar o canvas para o tamanho do quadro branco
+        function resizeCanvas() {
+            const rect = whiteboard.getBoundingClientRect();
+            drawingCanvas.width = rect.width;
+            drawingCanvas.height = rect.height;
+            // Redesenhar o conteúdo do canvas após redimensionar
+            redrawDrawing();
+        }
+
+        // Função para salvar o estado atual do quadro branco
+        function saveCurrentWhiteboardState() {
+             const currentBoard = getCurrentWhiteboard();
+
+             // Limpa os dados de post-it existentes no estado para capturar o estado atual do DOM
+             currentBoard.postIts = [];
+
+             // Captura o estado atual dos post-its no DOM
+             const postItElements = whiteboard.querySelectorAll('.post-it');
+             postItElements.forEach(postItEl => {
+                 const postId = postItEl.dataset.postId;
+                 // Captura o texto da textarea ou do div
+                 const textContent = postItEl.querySelector('textarea')?.value || postItEl.querySelector('.post-it-text')?.textContent || '';
+                 currentBoard.postIts.push({
+                     id: postId,
+                     left: postItEl.style.left,
+                     top: postItEl.style.top,
+                     width: postItEl.style.width,
+                     height: postItEl.style.height,
+                     text: textContent,
+                     color: postItEl.style.backgroundColor
+                 });
+             });
+
+             // Os traços de desenho já são gerenciados em currentBoard.drawingStrokes
+             console.log('Estado atual do quadro branco salvo:', currentBoard); // Log
+        }
+
+        // Função para carregar um estado de quadro branco
+        function loadWhiteboardState(index) {
+             if (index < 0 || index >= whiteboards.length) {
+                 console.error('Índice de quadro branco inválido:', index);
+                 return;
+             }
+
+             // Salva o estado do quadro branco atual antes de mudar
+             saveCurrentWhiteboardState();
+
+             // Atualiza o índice atual
+             currentWhiteboardIndex = index;
+             const currentBoard = getCurrentWhiteboard();
+             console.log('Carregando quadro branco índice:', currentWhiteboardIndex, 'Estado:', currentBoard); // Log
+
+             // Limpa a UI do quadro branco atual
+             clearWhiteboardUI();
+
+             // Carrega e renderiza os post-its
+             currentBoard.postIts.forEach(postItData => {
+                 const postIt = document.createElement('div');
+                 postIt.classList.add('post-it');
+                 postIt.dataset.postId = postItData.id;
+                 postIt.style.left = postItData.left;
+                 postIt.style.top = postItData.top;
+                 postIt.style.width = postItData.width;
+                 postIt.style.height = postItData.height;
+                 postIt.style.backgroundColor = postItData.color;
+
+                 // Renderiza como div de texto por default ao carregar
+                 const textElement = document.createElement('div');
+                 textElement.classList.add('post-it-text');
+                 textElement.textContent = postItData.text;
+                  // Ajusta a cor do texto com base na cor de fundo
+                 if (postItData.color === 'black' || postItData.color === 'rgb(0, 0, 0)') {
+                      textElement.style.color = 'white';
+                 } else {
+                      textElement.style.color = 'black';
+                 }
+                 postIt.appendChild(textElement);
+
+                 // Adiciona o handle de redimensionamento
+                 const resizeHandle = document.createElement('div');
+                 resizeHandle.classList.add('resize-handle');
+                 resizeHandle.innerHTML = '<div class="line"></div><div class="line"></div>';
+                 postIt.appendChild(resizeHandle);
+
+                 whiteboard.appendChild(postIt);
+                 // makeDraggable(postIt); // Removido daqui, a lógica de drag/resize/draw está agora em dragOrDraw
+                 // makeResizable(postIt); // Removido daqui
+
+                 // Adiciona listener de clique ao div.post-it-text para re-habilitar edição
+                 textElement.addEventListener('click', () => {
+                     console.log('div.post-it-text clicado, tentando habilitar edição.'); // Log
+                     enablePostItTextEditing(postIt);
+                 });
+             });
+
+             // Carrega e redesenha os traços de desenho
+             redrawDrawing();
+
+             // Atualiza os botões Desfazer/Refazer com base no histórico do novo quadro
+             updateUndoRedoButtons();
+        }
+
+        // Função para limpar a UI do quadro branco (remover post-its e limpar canvas)
+        function clearWhiteboardUI() {
+             // Remove todos os elementos post-it
+             whiteboard.querySelectorAll('.post-it').forEach(postItEl => {
+                 whiteboard.removeChild(postItEl);
+             });
+
+             // Limpa o canvas de desenho
+             ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+             console.log('UI do quadro branco limpa.'); // Log
+        }
+
+        // Função para criar um novo post-it
+        function createPostIt(x, y) {
+             console.log('Tentando criar post-it. activeTool:', activeTool); // Log
+             // Só cria post-it se a ferramenta '+' (Botão 1) estiver ativa
+             if (activeTool !== 'add-postit') {
+                 console.log('Criação de post-it abortada: ferramenta add-postit não ativa.'); // Log
+                 return;
+             }
+             console.log('Criando post-it em', x, y); // Log
+
+            const newPostItId = Date.now().toString(); // ID único para o post-it
+
+            const postIt = document.createElement('div');
+            postIt.classList.add('post-it');
+            postIt.dataset.postId = newPostItId; // Armazena o ID no dataset
+
+            // Posiciona o post-it onde o clique ocorreu (ou em uma posição aleatória se x, y forem null)
+            const boardRect = whiteboard.getBoundingClientRect();
+            const randomX = x !== null ? x - boardRect.left : Math.random() * (boardRect.width - 120);
+            const randomY = y !== null ? y - boardRect.top : Math.random() * (boardRect.height - 120);
+
+            // Limita a posição inicial para que o post-it fique dentro do quadro
+             const finalX = Math.max(0, Math.min(randomX, boardRect.width - 120));
+             const finalY = Math.max(0, Math.min(randomY, boardRect.height - 120));
+
+            postIt.style.left = `${finalX}px`;
+            postIt.style.top = `${finalY}px`;
+
+            const textarea = document.createElement('textarea');
+            textarea.placeholder = 'Escreva aqui...';
+            postIt.appendChild(textarea);
+
+             // Adiciona o handle de redimensionamento
+             const resizeHandle = document.createElement('div');
+             resizeHandle.classList.add('resize-handle');
+             resizeHandle.innerHTML = '<div class="line"></div><div class="line"></div>'; // Os dois riscos
+             postIt.appendChild(resizeHandle);
+
+
+            whiteboard.appendChild(postIt);
+
+            // Foca na área de texto ao criar
+            textarea.focus();
+
+            // Adiciona listeners de evento para edição de texto
+            textarea.addEventListener('focus', function() {
+                 originalPostItText = this.value; // Armazena o texto antes de iniciar a edição
+                  console.log('Textarea focada. Texto original:', originalPostItText); // Log
+            });
+
+            textarea.addEventListener('blur', function() {
+                 handlePostItTextChange(postIt, this);
+            });
+
+            textarea.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault(); // Previne a quebra de linha padrão
+                    handlePostItTextChange(postIt, this);
+                    finalizePostItText(postIt, this); // Finaliza substituindo textarea por div
+                }
+            });
+
+            // Adiciona eventos de arrastar e redimensionar (agora iniciados no mousedown/touchstart)
+            // makeDraggable(postIt); // Removido daqui, a lógica de drag/resize/draw está agora em dragOrDraw
+            // makeResizable(postIt); // Removido daqui
+
+            // Adiciona a ação de criação ao histórico do quadro branco atual
+            addActionToHistory({
+                type: 'create-postit',
+                id: newPostItId,
+                data: {
+                    left: postIt.style.left, // Captura como strings com 'px'
+                    top: postIt.style.top,   // Captura como strings com 'px'
+                    width: `${postIt.offsetWidth}px`, // Captura o tamanho inicial como strings
+                    height: `${postIt.offsetHeight}px`, // Captura o tamanho inicial como strings
+                    text: '', // O texto inicial está vazio
+                    color: '#a7f3d0' // Cor inicial
+                }
+            });
+
+             console.log('Post-it criado.'); // Log
+        }
+
+        // Função para lidar com mudanças de texto do post-it e adicionar ao histórico
+        function handlePostItTextChange(postIt, element) { // element pode ser textarea ou div
+             const newText = element.value !== undefined ? element.value : element.textContent; // Obtém o texto da textarea ou div
+             console.log('Lidando com mudança de texto. Original:', originalPostItText, 'Novo:', newText); // Log
+             if (newText !== originalPostItText) {
+                 const postId = postIt.dataset.postId;
+                 addActionToHistory({
+                     type: 'change-text',
+                     id: postId,
+                     oldText: originalPostItText,
+                     newText: newText
+                 });
+                  console.log('Ação de mudança de texto adicionada ao histórico.'); // Log
+                  originalPostItText = newText; // Atualiza o texto original após a ação ser registrada
+             }
+        }
+
+        // Função para finalizar a edição do texto do post-it (substitui textarea por div)
+        function finalizePostItText(postIt, textarea) {
+            const text = textarea.value;
+            const textElement = document.createElement('div');
+            textElement.classList.add('post-it-text');
+            textElement.textContent = text;
+             // Herda a cor do post-it
+             textElement.style.color = postIt.style.color || 'black';
+             // Ajusta a cor do texto com base na cor de fundo ao finalizar
+             const bgColor = postIt.style.backgroundColor;
+             if (bgColor === 'black' || bgColor === 'rgb(0, 0, 0)') {
+                  textElement.style.color = 'white';
+             } else {
+                  textElement.style.color = 'black';
+             }
+
+
+            // Remove a textarea e adiciona o div de texto
+            postIt.replaceChild(textElement, textarea); // Usa replaceChild para substituir
+
+             // Re-adiciona o handle de redimensionamento, pois foi removido com o elemento de texto
+             const resizeHandle = postIt.querySelector('.resize-handle');
+             if (!resizeHandle) { // Só adiciona se ainda não estiver presente
+                      const newResizeHandle = document.createElement('div');
+                      newResizeHandle.classList.add('resize-handle');
+                      newResizeHandle.innerHTML = '<div class="line"></div><div class="line"></div>';
+                      postIt.appendChild(newResizeHandle);
+                     // makeResizable(postIt); // Removido daqui
+                 }
+
+             // Adiciona listener de clique ao div.post-it-text para re-habilitar edição
+             textElement.addEventListener('click', () => {
+                 console.log('div.post-it-text clicado (após finalização), tentando habilitar edição.'); // Log
+                 enablePostItTextEditing(postIt);
+             });
+
+
+            console.log('Texto do post-it finalizado.'); // Log
+        }
+
+         // Função para desativar uma ferramenta específica
+         function deactivateTool(tool) {
+              console.log('Desativando ferramenta:', tool); // Log
+              const toolElement = document.getElementById(`${tool}-tool`);
+              if (toolElement) {
+                  toolElement.classList.remove('active');
+              }
+              // Esconde seletores de cor e tamanho
+              pencilColorPicker.classList.add('hidden');
+              brushColorPicker.classList.add('hidden');
+              brushSizePicker.classList.add('hidden');
+              eraserSizePicker.classList.add('hidden');
+
+              // Reseta o cursor se a ferramenta desativada for a ativa
+              if (activeTool === tool) {
+                  activeTool = null;
+                  whiteboard.style.cursor = 'default';
+              }
+               console.log('Ferramenta desativada. activeTool:', activeTool); // Log
+         }
+
+        // Função para ativar uma ferramenta
+        function activateTool(tool) {
+             console.log('Tentando ativar ferramenta:', tool); // Log
+            // Desativa a ferramenta anterior (exceto o '+' - Botão 1)
+            if (activeTool && activeTool !== 'add-postit') {
+                deactivateTool(activeTool);
+            }
+
+            // Lógica específica para o Botão 1 (+)
+            if (tool === 'add-postit') {
+                if (activeTool === 'add-postit') {
+                    // Se clicar no '+' novamente, desativa
+                    deactivateTool('add-postit');
+                } else {
+                    // Se clicar no '+' e ele não estiver ativo
+                    if (activeTool) { // Se outra ferramenta estiver ativa, desativa
+                         deactivateTool(activeTool);
+                    }
+                    activeTool = tool;
+                    addPostItTool.classList.add('active');
+                    whiteboard.style.cursor = 'copy'; // Cursor indicando que pode criar algo
+                     console.log('Botão 1 (+) ativado.'); // Log
+                }
+            } else {
+                // Lógica para as outras ferramentas (Botão 2 a 5)
+                if (activeTool === tool) {
+                    // Se clicar na ferramenta ativa novamente, desativa
+                    deactivateTool(tool);
+                } else {
+                    // Se clicar em uma nova ferramenta
+                    if (activeTool) { // Se outra ferramenta estiver ativa, desativa
+                         deactivateTool(activeTool);
+                    }
+                    activeTool = tool;
+                    const currentToolElement = document.getElementById(`${activeTool}-tool`);
+                    if (currentToolElement) {
+                        currentToolElement.classList.add('active');
+                    }
+
+                    // Mostra os seletores apropriados e define o cursor
+                    if (activeTool === 'pencil') { // Botão 2
+                        console.log('Botão 2 (pencil) ativado.'); // Log
+                        pencilColorPicker.classList.remove('hidden'); // Mostra o seletor de cor
+                        whiteboard.style.cursor = 'pointer'; // Cursor de ponteiro no modo lápis
+                    } else if (activeTool === 'brush') { // Botão 4
+                        console.log('Botão 4 (brush) ativado.'); // Log
+                         brushColorPicker.classList.remove('hidden');
+                         brushSizePicker.classList.remove('hidden');
+                         whiteboard.style.cursor = 'crosshair'; // Cursor de mira no modo pincel
+                    } else if (activeTool === 'eraser') { // Botão 5
+                        console.log('Botão 5 (eraser) ativado.'); // Log
+                         eraserSizePicker.classList.remove('hidden');
+                         whiteboard.style.cursor = 'crosshair'; // Cursor de mira no modo borracha
+                    } else {
+                         whiteboard.style.cursor = 'default'; // Cursor padrão
+                    }
+                }
+            }
+             console.log('Ativação da ferramenta completa. activeTool:', activeTool); // Log
+        }
+
+        // Função para mudar a cor selecionada
+        function selectColor(color) {
+            selectedColor = color;
+             console.log('Cor selecionada:', selectedColor); // Log
+             // TODO: Atualizar algum indicador visual da cor selecionada
+        }
+
+        // Função para mudar o tamanho selecionado
+        function selectSize(size) {
+             selectedSize = sizeMap[size];
+              console.log('Tamanho selecionado:', size, '->', selectedSize); // Log
+             // TODO: Atualizar algum indicador visual do tamanho selecionado
+        }
+
+         // Função para habilitar a edição de texto em um post-it
+         function enablePostItTextEditing(postIt) {
+             const textElement = postIt.querySelector('.post-it-text');
+             const textarea = postIt.querySelector('textarea');
+
+             // Só prossegue se houver um elemento de texto e nenhuma textarea atualmente
+             if (textElement && !textarea) {
+                 const currentText = textElement.textContent;
+                 originalPostItText = currentText; // Armazena o texto atual para desfazer
+
+                 const newTextarea = document.createElement('textarea');
+                 newTextarea.value = currentText;
+                 newTextarea.placeholder = 'Escreva aqui...'; // Ou usar o texto existente como placeholder?
+
+                 // Copia estilos do div para a textarea para aparência consistente
+                 const computedStyle = window.getComputedStyle(textElement);
+                 newTextarea.style.cssText = computedStyle.cssText;
+
+                 postIt.replaceChild(newTextarea, textElement); // Substitui div por textarea
+
+                 // Re-adiciona o handle de redimensionamento, pois foi removido com o elemento de texto
+                 const resizeHandle = postIt.querySelector('.resize-handle');
+                 if (!resizeHandle) { // Só adiciona se ainda não estiver presente
+                      const newResizeHandle = document.createElement('div');
+                      newResizeHandle.classList.add('resize-handle');
+                      newResizeHandle.innerHTML = '<div class="line"></div><div class="line"></div>';
+                      postIt.appendChild(newResizeHandle);
+                     // makeResizable(postIt); // Removido daqui
+                 }
+
+                 newTextarea.focus(); // Foca na nova textarea
+
+                 // Adiciona listeners de evento à nova textarea
+                 newTextarea.addEventListener('focus', function() {
+                      originalPostItText = this.value; // Armazena o texto antes de iniciar a edição
+                       console.log('Textarea focada (re-edição). Texto original:', originalPostItText); // Log
+                 });
+
+                 newTextarea.addEventListener('blur', function() {
+                      handlePostItTextChange(postIt, this);
+                      finalizePostItText(postIt, this); // Finaliza ao perder o foco
+                 });
+
+                 newTextarea.addEventListener('keypress', function(event) {
+                     if (event.key === 'Enter') {
+                         event.preventDefault(); // Previne a quebra de linha padrão
+                         handlePostItTextChange(postIt, this);
+                         finalizePostItText(postIt, this); // Finaliza ao pressionar Enter
+                     }
+                 });
+
+                 console.log('Edição de texto habilitada para post-it:', postIt.dataset.postId); // Log
+             } else if (textarea) {
+                  // Se já for uma textarea, apenas foca nela
+                  textarea.focus();
+                   console.log('Post-it já é uma textarea, focando.'); // Log
+             }
+         }
+
+        // Função para lidar com cliques no quadro branco
+        whiteboard.addEventListener('click', (e) => {
+             console.log('Quadro branco clicado. activeTool:', activeTool, 'target:', e.target); // Log
+             // Verifica se o clique não foi em um post-it existente
+             const clickedPostIt = e.target.closest('.post-it');
+             const clickedColorOption = e.target.closest('.color-option'); // Verifica se uma opção de cor foi clicada
+             const clickedResizeHandle = e.target.closest('.resize-handle');
+             const clickedPostItText = e.target.closest('.post-it-text');
+             const clickedPostItTextarea = e.target.matches('textarea');
+
+
+             // Lógica para criar post-it (Botão 1)
+             if (activeTool === 'add-postit' && !clickedPostIt) {
+                 console.log('Ferramenta adicionar post-it ativa, criando post-it.'); // Log
+                 createPostIt(e.clientX, e.clientY);
+                 // A desativação do Botão 1 agora acontece manualmente clicando no botão novamente
+                 return; // Sai da função para evitar processamento adicional
+             }
+
+             // Lógica para excluir post-it (Botão 3)
+             if (activeTool === 'trash' && clickedPostIt) {
+                  console.log('Ferramenta Lixeira ativa, tentando excluir post-it.'); // Log
+                  const postId = clickedPostIt.dataset.postId;
+                   // Captura os dados do post-it antes de removê-lo para o desfazer
+                   const postItDataForUndo = {
+                       left: clickedPostIt.style.left,
+                       top: clickedPostIt.style.top,
+                       // Captura o texto da textarea ou do div para desfazer
+                       text: clickedPostIt.querySelector('textarea')?.value || clickedPostIt.querySelector('.post-it-text')?.textContent || '',
+                       color: clickedPostIt.style.backgroundColor,
+                       width: clickedPostIt.style.width, // Captura o tamanho atual
+                       height: clickedPostIt.style.height // Captura o tamanho atual
+                   };
+
+                   // Remove o post-it do DOM
+                   whiteboard.removeChild(clickedPostIt);
+                    console.log('Post-it excluído do DOM.'); // Log
+
+                   // Adiciona a ação de exclusão ao histórico
+                   addActionToHistory({
+                       type: 'delete-postit',
+                       id: postId,
+                       data: postItDataForUndo
+                   });
+                    console.log('Ação de exclusão de post-it adicionada ao histórico.'); // Log
+                  return; // Sai da função
+             }
+
+             // Lógica para edição de texto (clicar no texto do post-it)
+             if (clickedPostItText || clickedPostItTextarea) {
+                  console.log('Clicado na área de texto/div do post-it, habilitando edição de texto.'); // Log
+                  // Encontra o post-it pai
+                  const parentPostIt = e.target.closest('.post-it');
+                  if (parentPostIt) {
+                      enablePostItTextEditing(parentPostIt);
+                  }
+                  return; // Sai da função
+             }
+
+             // Lógica para mudar cor com a ferramenta Lápis (Botão 2)
+             if (activeTool === 'pencil' && clickedPostIt && !clickedResizeHandle && !clickedPostItText && !clickedPostItTextarea) {
+                  console.log('Clicado no fundo do post-it com a ferramenta lápis ativa, mudando a cor.'); // Log
+                  const postId = clickedPostIt.dataset.postId;
+                  const oldColor = clickedPostIt.style.backgroundColor; // Captura a cor atual antes de mudar
+
+                  // Aplica a cor selecionada ao fundo do post-it
+                  clickedPostIt.style.backgroundColor = selectedColor;
+                  console.log('Cor de fundo do post-it definida para:', selectedColor); // Log
+
+                  // Encontra o elemento de texto dentro do post-it
+                  const textElement = clickedPostIt.querySelector('.post-it-text');
+                  console.log('Elemento de texto encontrado:', textElement); // Log
+
+                  // Ajusta a cor do texto se o fundo for preto ou branco
+                  if (textElement) {
+                       if (selectedColor === 'black' || selectedColor === 'rgb(0, 0, 0)') { // Verifica por 'black' ou o 'rgb(0, 0, 0)' computado
+                           textElement.style.color = 'white';
+                           console.log('Fundo do post-it é preto, cor do texto definida para branco.'); // Log
+                       } else if (selectedColor === 'white' || selectedColor === 'rgb(255, 255, 255)') { // Verifica por 'white' ou o 'rgb(255, 255, 255)' computado
+                           textElement.style.color = 'black';
+                           console.log('Fundo do post-it é branco, cor do texto definida para preto.'); // Log
+                       } else {
+                            // Para outras cores, padrão para texto preto
+                            textElement.style.color = 'black';
+                            console.log('Fundo do post-it não é preto/branco, cor do texto definida para preto.'); // Log
+                       }
+                  }
+
+                  // Adiciona a ação de mudança de cor ao histórico
+                  addActionToHistory({
+                      type: 'change-color',
+                      id: postId,
+                      oldColor: oldColor,
+                      newColor: selectedColor
+                  });
+                  console.log('Ação de mudança de cor adicionada ao histórico.'); // Log
+                  return; // Sai da função
+             }
+
+
+            // Lógica para cliques no quadro branco que não foram em post-its, seletores de cor ou ferramentas específicas
+             console.log('Fundo do quadro branco clicado, mas nenhuma ferramenta relevante ativa.'); // Log
+
+        });
+
+         // --- Funções de Desenho (Brush e Eraser) ---
+
+         // Função para começar a desenhar
+         function startDrawing(e) {
+             if (activeTool !== 'brush' && activeTool !== 'eraser') return; // Botão 4 ou 5
+              console.log('Iniciando desenho.', activeTool); // Log
+             isDrawing = true;
+             currentStrokePoints = []; // Inicializa os pontos para o novo traço
+
+             const rect = whiteboard.getBoundingClientRect();
+             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+             const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+             if (clientX === undefined || clientY === undefined) return;
+
+             lastX = clientX - rect.left;
+             lastY = clientY - rect.top;
+
+             currentStrokePoints.push({ x: lastX, y: lastY }); // Adiciona o ponto inicial
+
+             ctx.beginPath();
+             ctx.moveTo(lastX, lastY);
+             e.preventDefault(); // Previne ações padrão como rolagem
+         }
+
+         // Função para desenhar
+         function draw(e) {
+             if (!isDrawing) return;
+              // console.log('Desenhando...'); // Descomente para depuração detalhada
+             const rect = whiteboard.getBoundingClientRect();
+             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+             const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+             if (clientX === undefined || clientY === undefined) return;
+
+             const currentX = clientX - rect.left;
+             const currentY = clientY - rect.top;
+
+             ctx.lineTo(currentX, currentY);
+
+             if (activeTool === 'brush') {
+                 ctx.strokeStyle = selectedColor;
+                 ctx.lineWidth = selectedSize;
+                 ctx.lineCap = 'round';
+                 ctx.globalCompositeOperation = 'source-over';
+             } else if (activeTool === 'eraser') {
+                  ctx.strokeStyle = whiteboard.style.backgroundColor || 'white';
+                  ctx.lineWidth = selectedSize;
+                  ctx.lineCap = 'round';
+                  ctx.globalCompositeOperation = 'destination-out';
+             }
+
+             ctx.stroke();
+             lastX = currentX;
+             lastY = currentY;
+
+             currentStrokePoints.push({ x: lastX, y: lastY }); // Adiciona o ponto atual ao traço
+
+             e.preventDefault(); // Previne ações padrão
+         }
+
+         // Função para parar de desenhar
+         function stopDrawing() {
+             if (!isDrawing) return;
+              console.log('Parando desenho.'); // Log
+             isDrawing = false;
+             ctx.closePath();
+
+             // Adiciona o traço completo ao histórico de desenho e à pilha principal de desfazer
+             if (currentStrokePoints.length > 1) { // Só adiciona se houver mais de um ponto
+                 const strokeAction = {
+                     type: 'drawing',
+                     tool: activeTool,
+                     color: activeTool === 'brush' ? selectedColor : (whiteboard.style.backgroundColor || 'white'), // Captura a cor para o pincel, fundo para a borracha
+                     size: selectedSize,
+                     points: [...currentStrokePoints] // Armazena uma cópia dos pontos
+                 };
+                 const currentBoard = getCurrentWhiteboard();
+                 currentBoard.drawingStrokes.push(strokeAction); // Adiciona ao histórico específico de desenho
+                 addActionToHistory(strokeAction); // Adiciona à pilha principal de desfazer
+                  console.log('Traço de desenho adicionado ao histórico.'); // Log
+             }
+             currentStrokePoints = []; // Limpa os pontos temporários
+         }
+
+        // --- Funções Desfazer/Refazer ---
+
+        function undoAction() {
+            console.log('Botão Desfazer clicado.'); // Log
+             const currentBoard = getCurrentWhiteboard();
+            if (currentBoard.undoStack.length === 0) {
+                console.log('Pilha de desfazer está vazia.'); // Log
+                return;
+            }
+
+            const lastAction = currentBoard.undoStack.pop();
+            console.log('Desfazendo ação:', lastAction); // Log
+            currentBoard.redoStack.push(lastAction);
+
+            const postIt = whiteboard.querySelector(`[data-post-id="${lastAction.id}"]`);
+
+            switch (lastAction.type) {
+                case 'create-postit':
+                    // Desfazer criação: remover o post-it
+                    if (postIt) {
+                        whiteboard.removeChild(postIt);
+                        console.log('Desfeito create-postit:', lastAction.id); // Log
+                    }
+                    break;
+                case 'change-color':
+                    // Desfazer mudança de cor: reverter para a cor antiga
+                    if (postIt) {
+                        postIt.style.backgroundColor = lastAction.oldColor;
+                         const textElement = postIt.querySelector('.post-it-text');
+                         if (textElement) {
+                              // Ajusta a cor do texto com base na cor antiga
+                              if (lastAction.oldColor === 'black' || lastAction.oldColor === 'rgb(0, 0, 0)') {
+                                   textElement.style.color = 'white';
+                              } else {
+                                   textElement.style.color = 'black';
+                              }
+                         }
+                        console.log('Desfeito change-color para post-it:', lastAction.id, 'para', lastAction.oldColor); // Log
+                    }
+                    break;
+                case 'delete-postit':
+                    // Desfazer exclusão: recriar o post-it
+                    const postItData = lastAction.data;
+                    const recreatedPostIt = document.createElement('div');
+                    recreatedPostIt.classList.add('post-it');
+                    recreatedPostIt.dataset.postId = lastAction.id;
+                    recreatedPostIt.style.left = postItData.left;
+                    recreatedPostIt.style.top = postItData.top;
+                    recreatedPostIt.style.width = postItData.width; // Restaura o tamanho
+                    recreatedPostIt.style.height = postItData.height; // Restaura o tamanho
+                    recreatedPostIt.style.backgroundColor = postItData.color;
+
+                    // Recria como div se o texto foi finalizado, ou textarea se não
+                     if (postItData.text !== undefined && postItData.text !== '') {
+                         const textElement = document.createElement('div');
+                         textElement.classList.add('post-it-text');
+                         textElement.textContent = postItData.text;
+                          if (recreatedPostIt.style.backgroundColor === 'black' || recreatedPostIt.style.backgroundColor === 'rgb(0, 0, 0)') {
+                              textElement.style.color = 'white';
+                          } else {
+                              textElement.style.color = 'black';
+                          }
+                         recreatedPostIt.appendChild(textElement);
+                         // Adiciona listener de clique ao div.post-it-text para re-habilitar edição
+                         textElement.addEventListener('click', () => {
+                             console.log('div.post-it-text clicado (após desfazer), tentando habilitar edição.'); // Log
+                             enablePostItTextEditing(recreatedPostIt);
+                         });
+                     } else {
+                          const textarea = document.createElement('textarea');
+                          textarea.placeholder = 'Escreva aqui...';
+                          recreatedPostIt.appendChild(textarea);
+                          // Re-adiciona listeners de evento para edição de texto na textarea
+                          textarea.addEventListener('focus', function() { originalPostItText = this.value; });
+                          textarea.addEventListener('blur', function() { handlePostItTextChange(recreatedPostit, this); finalizePostItText(recreatedPostit, this); });
+                          textarea.addEventListener('keypress', function(event) { if (event.key === 'Enter') { event.preventDefault(); handlePostItTextChange(recreatedPostit, this); finalizePostItText(recreatedPostit, this); }});
+                     }
+
+                     // Re-adiciona o handle de redimensionamento
+                     const resizeHandle = document.createElement('div');
+                     resizeHandle.classList.add('resize-handle');
+                     resizeHandle.innerHTML = '<div class="line"></div><div class="line"></div>';
+                     recreatedPostIt.appendChild(resizeHandle);
+
+                    whiteboard.appendChild(recreatedPostIt);
+                    // makeDraggable(recreatedPostIt); // Removido daqui
+                    // makeResizable(recreatedPostIt); // Removido daqui
+                    console.log('Desfeito delete-postit:', lastAction.id); // Log
+                    break;
+                 case 'drawing':
+                     // Desfazer ação de desenho: remover o último traço e redesenhar
+                     currentBoard.drawingStrokes.pop(); // Remove o último traço do histórico de desenho do quadro atual
+                     redrawDrawing(); // Redesenha o canvas sem o último traço
+                     console.log('Desfeito traço de desenho.'); // Log
+                     break;
+                 case 'resize-postit':
+                     // Desfazer redimensionamento: reverter para o tamanho antigo
+                     if (postIt) {
+                         postIt.style.width = lastAction.oldWidth;
+                         postIt.style.height = lastAction.oldHeight;
+                         console.log('Desfeito resize para post-it:', lastAction.id, 'para', lastAction.oldWidth, lastAction.oldHeight); // Log
+                     }
+                     break;
+                 case 'change-text':
+                     // Desfazer mudança de texto: reverter para o texto antigo
+                     if (postIt) {
+                          // Verifica se atualmente é uma textarea ou div
+                          const textarea = postIt.querySelector('textarea');
+                          const textElement = postIt.querySelector('.post-it-text');
+
+                          if (textarea) {
+                              textarea.value = lastAction.oldText;
+                               // Se foi finalizado antes de desfazer, precisamos voltar para div
+                               if (lastAction.oldText === lastAction.newText && textElement) { // Verifica se o texto era o mesmo, mas o tipo de elemento mudou
+                                   finalizePostItText(postIt, textarea); // Finaliza para voltar para div
+                               }
+                              console.log('Desfeito mudança de texto para textarea do post-it:', lastAction.id, 'para', lastAction.oldText); // Log
+                          } else if (textElement) {
+                              textElement.textContent = lastAction.oldText;
+                              console.log('Desfeito mudança de texto para div de texto do post-it:', lastAction.id, 'para', lastAction.oldText); // Log
+                          }
+                     }
+                     break;
+                 case 'drag-postit':
+                     // Desfazer arrasto: reverter para a posição antiga
+                      if (postIt) {
+                          postIt.style.left = lastAction.oldLeft;
+                          postIt.style.top = lastAction.oldTop;
+                          console.log('Desfeito drag para post-it:', lastAction.id, 'para', lastAction.oldLeft, lastAction.oldTop); // Log
+                      }
+                     break;
+            }
+
+            updateUndoRedoButtons();
+             console.log('Pilha de desfazer (quadro atual) após desfazer:', currentBoard.undoStack); // Log
+             console.log('Pilha de refazer (quadro atual) após desfazer:', currentBoard.redoStack); // Log
+        }
+
+        function redoAction() {
+            console.log('Botão Refazer clicado.'); // Log
+             const currentBoard = getCurrentWhiteboard();
+            if (currentBoard.redoStack.length === 0) {
+                 console.log('Pilha de refazer está vazia.'); // Log
+                return;
+            }
+
+            const lastRedoAction = currentBoard.redoStack.pop();
+            console.log('Refazendo ação:', lastRedoAction); // Log
+            currentBoard.undoStack.push(lastRedoAction);
+
+             const postIt = whiteboard.querySelector(`[data-post-id="${lastRedoAction.id}"]`);
+
+            switch (lastRedoAction.type) {
+                case 'create-postit':
+                    // Refazer criação: recriar o post-it
+                    const postItData = lastRedoAction.data;
+                    const recreatedPostIt = document.createElement('div');
+                    recreatedPostIt.classList.add('post-it');
+                    recreatedPostIt.dataset.postId = lastRedoAction.id;
+                    recreatedPostIt.style.left = postItData.left;
+                    recreatedPostIt.style.top = postItData.top;
+                     recreatedPostIt.style.width = postItData.width; // Restaura o tamanho
+                     recreatedPostIt.style.height = postItData.height; // Restaura o tamanho
+                    // A cor inicial é definida na criação, o texto precisa ser adicionado
+                    recreatedPostIt.style.backgroundColor = postItData.color || '#a7f3d0'; // Usa cor salva ou padrão
+
+                    // Verifica se o texto foi finalizado (div existe) ou ainda está no estado de textarea
+                     if (postItData.text !== undefined && postItData.text !== '') { // Assumindo que texto vazio significa que ainda era uma textarea ou div vazia
+                         const textElement = document.createElement('div'); // Recria como div de texto
+                         textElement.classList.add('post-it-text');
+                         textElement.textContent = postItData.text; // Usa texto salvo
+                          // Ajusta a cor do texto com base na cor recriada
+                          if (recreatedPostIt.style.backgroundColor === 'black' || recreatedPostIt.style.backgroundColor === 'rgb(0, 0, 0)') {
+                              textElement.style.color = 'white';
+                          } else {
+                              textElement.style.color = 'black';
+                          }
+                         recreatedPostIt.appendChild(textElement);
+                         // Adiciona listener de clique ao div.post-it-text para re-habilitar edição
+                         textElement.addEventListener('click', () => {
+                             console.log('div.post-it-text clicado (após refazer), tentando habilitar edição.'); // Log
+                             enablePostItTextEditing(recreatedPostIt);
+                         });
+                     } else {
+                          // Se o texto estava vazio ou não foi finalizado, recria como textarea
+                          const textarea = document.createElement('textarea');
+                          textarea.placeholder = 'Escreva aqui...';
+                          recreatedPostIt.appendChild(textarea);
+
+                          // Re-adiciona listeners de evento para edição de texto na textarea
+                          textarea.addEventListener('focus', function() {
+                              originalPostItText = this.value;
+                          });
+                          textarea.addEventListener('blur', function() {
+                              handlePostItTextChange(recreatedPostit, this);
+                              finalizePostItText(recreatedPostit, this);
+                          });
+                          textarea.addEventListener('keypress', function(event) {
+                              if (event.key === 'Enter') {
+                                  event.preventDefault();
+                                  handlePostItTextChange(recreatedPostit, this);
+                                  finalizePostItText(recreatedPostit, this);
+                              }
+                          });
+                     }
+
+                     // Re-adiciona o handle de redimensionamento
+                     const resizeHandle = document.createElement('div');
+                     resizeHandle.classList.add('resize-handle');
+                     resizeHandle.innerHTML = '<div class="line"></div><div class="line"></div>';
+                     recreatedPostIt.appendChild(resizeHandle);
+
+                    whiteboard.appendChild(recreatedPostIt);
+                    // makeDraggable(recreatedPostIt); // Removido daqui
+                    // makeResizable(recreatedPostIt); // Removido daqui
+                    console.log('Refeito create-postit:', lastRedoAction.id); // Log
+                    break;
+                case 'change-color':
+                    // Refazer mudança de cor: aplicar a nova cor
+                    if (postIt) {
+                        postIt.style.backgroundColor = lastRedoAction.newColor;
+                         const textElement = postIt.querySelector('.post-it-text');
+                         if (textElement) {
+                              // Ajusta a cor do texto com base na nova cor
+                              if (lastRedoAction.newColor === 'black' || lastRedoAction.newColor === 'rgb(0, 0, 0)') {
+                                   textElement.style.color = 'white';
+                              } else {
+                                   textElement.style.color = 'black';
+                              }
+                         }
+                        console.log('Refeito change-color para post-it:', lastRedoAction.id, 'para', lastRedoAction.newColor); // Log
+                    }
+                    break;
+                case 'delete-postit':
+                    // Refazer exclusão: remover o post-it novamente
+                     if (postIt) {
+                         whiteboard.removeChild(postIt);
+                          console.log('Refeito delete-postit para post-it:', lastRedoAction.id); // Log
+                     }
+                    break;
+                 case 'drawing':
+                     // Refazer ação de desenho: adicionar o traço de volta e redesenhar
+                     currentBoard.drawingStrokes.push(lastRedoAction); // Adiciona o traço de volta ao histórico de desenho
+                     redrawDrawing(); // Redesenha o canvas com o traço adicionado
+                     console.log('Refeito traço de desenho.'); // Log
+                     break;
+                 case 'resize-postit':
+                     // Refazer redimensionamento: aplicar o novo tamanho
+                     if (postIt) {
+                         postIt.style.width = lastRedoAction.newWidth;
+                         postIt.style.height = lastRedoAction.newHeight;
+                         console.log('Refeito resize para post-it:', lastRedoAction.id, 'para', lastRedoAction.newWidth, lastRedoAction.newHeight); // Log
+                     }
+                     break;
+                 case 'change-text':
+                     // Refazer mudança de texto: aplicar o novo texto
+                      if (postIt) {
+                           // Verifica se atualmente é uma textarea ou div
+                           const textarea = postIt.querySelector('textarea');
+                           const textElement = postIt.querySelector('.post-it-text');
+
+                           if (textElement) {
+                               textElement.textContent = lastRedoAction.newText;
+                                console.log('Refeito mudança de texto para div de texto do post-it:', lastRedoAction.id, 'para', lastRedoAction.newText); // Log
+                           } else if (textarea) {
+                               textarea.value = lastRedoAction.newText;
+                                // Se era uma textarea antes de refazer, precisamos voltar para div
+                                if (lastRedoAction.oldText === lastRedoAction.newText && textElement) { // Verifica se o texto era o mesmo, mas o tipo de elemento mudou
+                                     // Este caso pode ser complicado, garante que não criamos um div duplicado
+                                     // A função `finalizePostItText` deve lidar com a substituição corretamente
+                                     finalizePostItText(postIt, textarea); // Finaliza para voltar para div
+                                }
+                                console.log('Refeito mudança de texto para textarea do post-it:', lastRedoAction.id, 'para', lastRedoAction.newText); // Log
+                           }
+                      }
+                     break;
+                 case 'drag-postit':
+                     // Refazer arrasto: aplicar a nova posição
+                      if (postIt) {
+                          postIt.style.left = lastRedoAction.newLeft;
+                          postIt.style.top = lastRedoAction.newTop; // Corrigido para usar newTop para refazer
+                          console.log('Refeito drag para post-it:', lastRedoAction.id, 'para', lastRedoAction.newLeft, lastRedoAction.newTop); // Log
+                      }
+                     break;
+            }
+
+            updateUndoRedoButtons();
+             console.log('Pilha de desfazer (quadro atual) após refazer:', currentBoard.undoStack); // Log
+             console.log('Pilha de refazer (quadro atual) após refazer:', currentBoard.redoStack); // Log
+        }
+
+
+        // --- Funções de Redimensionamento ---
+
+        function makeResizable(element) {
+            const resizeHandle = element.querySelector('.resize-handle');
+            if (!resizeHandle) return; // Sai se nenhum handle de redimensionamento for encontrado
+
+            // Eventos do mouse para redimensionamento
+            resizeHandle.addEventListener('mousedown', (e) => {
+                console.log('mousedown no handle de redimensionamento.'); // Log
+                e.stopPropagation(); // Previne arrastar o post-it ou outras ações
+                isResizingPostIt = true; // Usa a flag global
+                activeResizeHandle = e.target.closest('.resize-handle'); // Define o handle ativo
+                activePostIt = activeResizeHandle.parentNode; // Define o post-it ativo
+                initialMouseX = e.clientX;
+                initialMouseY = e.clientY;
+                initialPostItWidth = activePostIt.offsetWidth;
+                initialPostItHeight = activePostIt.offsetHeight;
+                activePostIt.style.cursor = 'se-resize';
+                activePostIt.style.zIndex = 1001;
+                e.preventDefault(); // Previne arrasto do post-it
+            });
+
+            // Eventos de toque para redimensionamento
+             resizeHandle.addEventListener('touchstart', (e) => {
+                 console.log('touchstart no handle de redimensionamento.'); // Log
+                 e.stopPropagation(); // Previne arrastar o post-it ou outras ações
+                 isResizingPostIt = true; // Usa a flag global
+                 activeResizeHandle = e.target.closest('.resize-handle'); // Define o handle ativo
+                 activePostIt = activeResizeHandle.parentNode; // Define o post-it ativo
+                 const touch = e.touches[0];
+                 initialMouseX = touch.clientX;
+                 initialMouseY = touch.clientY;
+                 initialPostItWidth = activePostIt.offsetWidth;
+                 initialPostItHeight = activePostIt.offsetHeight;
+                 activePostIt.style.cursor = 'se-resize'; // Muda o cursor durante o redimensionamento
+                 activePostIt.style.zIndex = 1001; // Ligeiramente maior que o z-index de arrasto
+                  e.preventDefault(); // Previne ações de toque padrão (como rolagem)
+             });
+        }
+
+        // Função para tornar um elemento arrastável
+        function makeDraggable(element) {
+            // Eventos do mouse para arrastar
+            element.addEventListener('mousedown', (e) => {
+                console.log('mousedown no post-it para arrastar.'); // Log
+                // Impede o arrasto se a ferramenta de lixeira ou lápis (com clique interno) estiver ativa, OU se o clique for no handle de redimensionamento, texto ou textarea
+                if (activeTool === 'trash' || (activeTool === 'pencil' && e.target !== element && !e.target.closest('.post-it-text') && !e.target.matches('textarea')) || e.target.closest('.resize-handle') || e.target.closest('.post-it-text') || e.target.matches('textarea')) {
+                     console.log('Arrasto prevenido por ferramenta ativa, handle de redimensionamento, texto ou textarea.'); // Log
+                    return;
+                }
+
+                isDraggingPostIt = true; // Usa a flag global
+                activePostIt = element; // Define o post-it ativo
+                console.log('isDraggingPostIt definido como true (mousedown).'); // Log
+                const rect = element.getBoundingClientRect();
+                // Calcula o offset do ponto de clique/toque em relação ao canto superior esquerdo do post-it
+                xOffset = e.clientX - rect.left;
+                yOffset = e.clientY - rect.top;
+                 startLeft = element.style.left; // Captura a posição inicial
+                 startTop = element.style.top; // Captura a posição inicial
+                element.style.cursor = 'grabbing';
+                element.style.zIndex = 1000; // Traz para frente ao arrastar
+                 e.stopPropagation(); // Impede que o evento de clique no post-it propague para o quadro branco
+            });
+
+            // Adicionar suporte a toque para arrastar
+             element.addEventListener('touchstart', (e) => {
+                 console.log('touchstart no post-it para arrastar.'); // Log
+                 // Impede o arrasto se a ferramenta de lixeira ou lápis (com clique interno) estiver ativa, OU se o clique for no handle de redimensionamento, texto ou textarea
+                 if (activeTool === 'trash' || (activeTool === 'pencil' && e.target !== element && !e.target.closest('.post-it-text') && !e.target.matches('textarea')) || e.target.closest('.resize-handle') || e.target.closest('.post-it-text') || e.target.matches('textarea')) {
+                      console.log('Arrasto prevenido por ferramenta ativa (toque), handle de redimensionamento, texto ou textarea.'); // Log
+                     return;
+                 }
+
+                 isDraggingPostIt = true; // Usa a flag global
+                 activePostIt = element; // Define o post-it ativo
+                 console.log('isDraggingPostIt definido como true (touchstart).'); // Log
+                 const touch = e.touches[0];
+                 const rect = activePostIt.getBoundingClientRect();
+                 // Calcula o offset do ponto de clique/toque em relação ao canto superior esquerdo do post-it
+                 xOffset = touch.clientX - rect.left;
+                 yOffset = touch.clientY - rect.top;
+                   startLeft = activePostIt.style.left; // Captura a posição inicial
+                   startTop = activePostIt.style.top; // Captura a posição inicial
+                  activePostIt.style.cursor = 'grabbing';
+                  activePostIt.style.zIndex = 1000;
+                  e.stopPropagation(); // Impede que o evento de toque no post-it propague para o quadro branco
+             });
+        }
+
+        // Função combinada para lidar com arrastar post-its, redimensionar post-its e desenhar
+        function dragOrDraw(e) {
+            e.preventDefault();
+            if (isDraggingPostIt && activePostIt) { // Verifica se está arrastando E se há um post-it ativo
+                const currentX = e.clientX || (e.touches && e.touches[0].clientX);
+                const currentY = e.clientY || (e.touches && e.touches[0].clientY);
+
+                // Verifica se as coordenadas são válidas
+                if (currentX === undefined || currentY === undefined) return;
+
+                const whiteboardRect = whiteboard.getBoundingClientRect();
+                const postItRect = activePostIt.getBoundingClientRect();
+
+                // Calcula a nova posição do canto superior esquerdo do post-it
+                let newX = currentX - xOffset;
+                let newY = currentY - yOffset;
+
+                // Restrição horizontal
+                if (newX < 0) {
+                    newX = 0;
+                } else if (newX + postItRect.width > whiteboardRect.width) {
+                    newX = whiteboardRect.width - postItRect.width;
+                }
+
+                // Restrição vertical
+                if (newY < 0) {
+                    newY = 0;
+                } else if (newY + postItRect.height > whiteboardRect.height) {
+                    newY = whiteboardRect.height - postItRect.height;
+                }
+
+                activePostIt.style.left = `${newX}px`;
+                activePostIt.style.top = `${newY}px`;
+
+            } else if (isResizingPostIt && activeResizeHandle && activePostIt) { // Verifica se está redimensionando E se há handle e post-it ativos
+                const currentX = e.clientX || (e.touches && e.touches[0].clientX);
+                const currentY = e.clientY || (e.touches && e.touches[0].clientY);
+
+                 // Verifica se as coordenadas são válidas
+                 if (currentX === undefined || currentY === undefined) return;
+
+
+                // Calcula a nova largura e altura
+                let newWidth = initialPostItWidth + (currentX - initialMouseX);
+                let newHeight = initialPostItHeight + (currentY - initialMouseY);
+
+                // Aplica um limite mínimo de tamanho (ex: 50px)
+                const minSize = 50;
+                if (newWidth < minSize) newWidth = minSize;
+                if (newHeight < minSize) newHeight = minHeight;
+
+                activePostIt.style.width = `${newWidth}px`; // Aplica ao post-it ativo
+                activePostIt.style.height = `${newHeight}px`; // Aplica ao post-it ativo
+
+            } else if (isDrawing) {
+                const currentX = e.clientX || (e.touches && e.touches[0].clientX);
+                const currentY = e.clientY || (e.touches && e.touches[0].clientY);
+
+                 // Verifica se as coordenadas são válidas
+                 if (currentX === undefined || currentY === undefined) return;
+
+                const rect = drawingCanvas.getBoundingClientRect();
+                const x = currentX - rect.left;
+                const y = currentY - rect.top;
+
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(x, y);
+
+                ctx.strokeStyle = selectedColor;
+                ctx.lineWidth = selectedSize;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                // Aplica o modo de composição para borracha
+                if (activeTool === 'eraser') {
+                    ctx.globalCompositeOperation = 'destination-out'; // Apaga pixels existentes
+                    ctx.strokeStyle = 'rgba(0,0,0,1)'; // Cor não importa para destination-out
+                } else {
+                    ctx.globalCompositeOperation = 'source-over'; // Desenha normalmente
+                }
+
+                ctx.stroke();
+
+                currentStrokePoints.push({ x, y, color: selectedColor, size: selectedSize, tool: activeTool });
+
+                lastX = x;
+                lastY = y;
+            }
+        }
+
+        // Função para parar arrastar o post-it
+        function stopDraggingPostIt() {
+             console.log('stopDraggingPostIt chamado.'); // Log
+             if (!isDraggingPostIt || !activePostIt) return;
+
+             // Adiciona a ação de arrasto ao histórico se a posição mudou
+             const currentLeft = activePostIt.style.left;
+             const currentTop = activePostIt.style.top;
+
+             if (currentLeft !== startLeft || currentTop !== startTop) {
+                 addActionToHistory({
+                     type: 'drag-postit',
+                     id: activePostIt.dataset.postId,
+                     oldLeft: startLeft,
+                     oldTop: startTop,
+                     newLeft: currentLeft,
+                     newTop: currentTop
+                 });
+                  console.log('Ação de arrasto adicionada ao histórico (stopDraggingPostIt).'); // Log
+             }
+
+             isDraggingPostIt = false;
+             activePostIt.style.cursor = 'grab'; // Restaura o cursor de arrastar
+             activePostIt.style.zIndex = ''; // Retorna a z-index padrão
+             activePostIt = null; // Limpa o post-it ativo
+              console.log('Arrasto de post-it parado.'); // Log
+        }
+
+        // Função para parar redimensionar o post-it
+        function stopResizingPostIt() {
+            console.log('stopResizingPostIt chamado.'); // Log
+            if (!isResizingPostIt || !activePostIt) return;
+
+             // Adiciona a ação de redimensionamento ao histórico se o tamanho mudou
+             const currentWidth = activePostIt.offsetWidth;
+             const currentHeight = activePostIt.offsetHeight;
+
+             if (currentWidth !== initialPostItWidth || currentHeight !== initialPostItHeight) {
+                 addActionToHistory({
+                     type: 'resize-postit',
+                     id: activePostIt.dataset.postId,
+                     oldWidth: `${initialPostItWidth}px`, // Usa o tamanho inicial capturado
+                     oldHeight: `${initialPostItHeight}px`, // Usa o tamanho inicial capturado
+                     newWidth: `${currentWidth}px`,
+                     newHeight: `${currentHeight}px`
+                 });
+                  console.log('Ação de redimensionamento adicionada ao histórico (stopResizingPostIt).'); // Log
+             }
+
+            isResizingPostIt = false;
+            activePostIt.style.cursor = 'grab'; // Restaura o cursor do post-it
+            activePostIt.style.zIndex = ''; // Restaura o z-index do post-it
+            activeResizeHandle = null; // Limpa o handle ativo
+            activePostIt = null; // Limpa o post-it ativo
+             console.log('Redimensionamento de post-it parado.'); // Log
+        }
+
+
+        // --- Funções para Arrastar o Contêiner de Cartões ---
+        let isContainerDragging = false;
+        let startPos = { scrollLeft: 0, clientX: 0 };
+
+        // Event listener para iniciar o arrasto do contêiner
+        topicCardsContainer.addEventListener('mousedown', (e) => {
+            isContainerDragging = true;
+            topicCardsContainer.classList.add('active-drag');
+            startPos = {
+                scrollLeft: topicCardsContainer.scrollLeft,
+                clientX: e.clientX,
+            };
+             // Previne a ação padrão para evitar a seleção de texto
+             e.preventDefault();
+             console.log('Iniciando arrasto do contêiner de cartões.'); // Log
+        });
+
+         // Event listener para iniciar o arrasto do contêiner (Toque)
+         topicCardsContainer.addEventListener('touchstart', (e) => {
+             isContainerDragging = true;
+             topicCardsContainer.classList.add('active-drag');
+             const touch = e.touches[0];
+             startPos = {
+                 scrollLeft: topicCardsContainer.scrollLeft,
+                 clientX: touch.clientX,
+             };
+              // Previne a ação padrão para evitar a rolagem nativa
+              e.preventDefault();
+              console.log('Iniciando arrasto do contêiner de cartões (toque).'); // Log
+         });
+
+
+        // Event listener para arrastar o contêiner
+        topicCardsContainer.addEventListener('mousemove', (e) => {
+            if (!isContainerDragging) return;
+            // Calcula a distância que o mouse moveu
+            const deltaX = e.clientX - startPos.clientX;
+            // Atualiza a posição de rolagem do contêiner
+            topicCardsContainer.scrollLeft = startPos.scrollLeft - deltaX;
+             // Previne a ação padrão para evitar a seleção de texto
+             e.preventDefault();
+             // console.log('Arrastando contêiner de cartões. DeltaX:', deltaX, 'ScrollLeft:', topicCardsContainer.scrollLeft); // Log detalhado
+        });
+
+         // Event listener para arrastar o contêiner (Toque)
+         topicCardsContainer.addEventListener('touchmove', (e) => {
+             if (!isContainerDragging) return;
+             const touch = e.touches[0];
+             const deltaX = touch.clientX - startPos.clientX;
+             topicCardsContainer.scrollLeft = startPos.scrollLeft - deltaX;
+              e.preventDefault();
+              // console.log('Arrastando contêiner de cartões (toque). DeltaX:', deltaX, 'ScrollLeft:', topicCardsContainer.scrollLeft); // Log detalhado
+         });
+
+
+        // Event listener para parar o arrasto do contêiner
+        document.addEventListener('mouseup', () => {
+            if (!isContainerDragging) return;
+            isContainerDragging = false;
+            topicCardsContainer.classList.remove('active-drag');
+             console.log('Parando arrasto do contêiner de cartões.'); // Log
+        });
+
+         // Event listener para parar o arrasto do contêiner (Toque)
+         document.addEventListener('touchend', () => {
+             if (!isContainerDragging) return;
+             isContainerDragging = false;
+             topicCardsContainer.classList.remove('active-drag');
+              console.log('Parando arrasto do contêiner de cartões (toque).'); // Log
+         });
+
+         // Adiciona um listener para touchcancel para garantir que o arrasto pare se o toque for cancelado
+         document.addEventListener('touchcancel', () => {
+             if (!isContainerDragging) return;
+             isContainerDragging = false;
+             topicCardsContainer.classList.remove('active-drag');
+              console.log('Arrasto do contêiner de cartões cancelado (touchcancel).'); // Log
+         });
+
+
+        // Função para renderizar os cartões de tema
+        function renderTopicCards(filteredTopics = topics) { // Aceita uma lista filtrada ou a lista completa por padrão
+            topicCardsContainer.innerHTML = ''; // Limpa o contêiner atual
+            if (filteredTopics.length === 0) {
+                 // Adiciona uma mensagem ou placeholder se a lista estiver vazia
+                 const emptyMessage = document.createElement('p');
+                 emptyMessage.textContent = 'Nenhum tema encontrado com os critérios de pesquisa.';
+                 emptyMessage.classList.add('text-gray-600', 'text-center', 'w-full');
+                 topicCardsContainer.appendChild(emptyMessage);
+            } else {
+                filteredTopics.forEach(topic => {
+                    const card = document.createElement('div');
+                    card.classList.add('topic-card', 'rounded-md', 'shadow-md', 'p-4', 'cursor-pointer', 'transition');
+                    card.innerHTML = `
+                        <h3 class="text-lg font-semibold mb-2">${topic.title}</h3>
+                        <p class="text-gray-600 text-sm">Score: ${topic.score !== undefined && topic.score !== 'N/A' ? topic.score.toFixed(0) + '%' : 'N/A'}</p>
+                        `; // Exibe o score como porcentagem inteira ou N/A
+
+                    // Define a cor de fundo do cartão com base no score
+                    if (topic.score !== undefined && topic.score !== 'N/A') {
+                         const hue = (topic.score / 100) * 120; // Mapeia 0-100 para Hue 0 (vermelho) a 120 (verde)
+                         card.style.backgroundColor = `hsl(${hue}, 70%, 80%)`; // Usa HSL para cor
+                    } else {
+                         card.style.backgroundColor = 'white'; // Cor padrão se não houver score
+                    }
+
+                    card.dataset.chatId = topic.id; // Armazena o ID do chat no dataset
+                    topicCardsContainer.appendChild(card);
+                });
+            }
+        }
+
+        // Função para renderizar as mensagens do chat
+        function renderMessages(messages) {
+            chatMessages.innerHTML = ''; // Limpa as mensagens atuais
+            messages.forEach(message => {
+                const messageEl = document.createElement('div');
+                messageEl.classList.add('message-bubble', message.sender === 'user' ? 'user-message' : 'bot-message');
+                messageEl.textContent = message.text;
+                chatMessages.appendChild(messageEl);
+            });
+            // Rola para a última mensagem
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Função para renderizar a barra lateral de fundamentos
+        function renderFundamentalsSidebar(fundamentals) {
+            fundamentalsList.innerHTML = ''; // Limpa a lista atual
+            if (!fundamentals || fundamentals.length === 0) {
+                 const emptyMessage = document.createElement('p');
+                 emptyMessage.textContent = 'Nenhum fundamento encontrado para este tópico.';
+                 emptyMessage.classList.add('text-gray-600', 'text-sm', 'text-center');
+                 fundamentalsList.appendChild(emptyMessage);
+                 return;
+            }
+
+            fundamentals.forEach(fundamental => {
+                const fundamentalItem = document.createElement('div');
+                fundamentalItem.classList.add('fundamental-item');
+                fundamentalItem.dataset.fundamentalName = fundamental.name; // Armazena o nome para referência
+
+                fundamentalItem.innerHTML = `
+                     <div class="progress-bar" style="width: ${fundamental.percentage}%;"></div>
+                     <div class="content">
+                         <span class="fundamental-name">${fundamental.name}</span>
+                         <span class="fundamental-percentage">${fundamental.percentage}%</span>
+                     </div>
+                 `;
+
+                 // REMOVIDO: Listener de clique para atualizar a porcentagem manualmente
+                 // fundamentalItem.addEventListener('click', () => { ... });
+
+
+                fundamentalsList.appendChild(fundamentalItem);
+            });
+        }
+
+        // Função para calcular e atualizar o score de um tópico
+        function updateTopicScore(topic) {
+             console.log('Calculando score para tópico:', topic.title, 'Fundamentos:', topic.fundamentals); // Log
+             if (!topic.fundamentals || topic.fundamentals.length === 0) {
+                 topic.score = 'N/A';
+                 console.log('Nenhum fundamento, score N/A.'); // Log
+                 return;
+             }
+
+             const totalPercentage = topic.fundamentals.reduce((sum, fundamental) => sum + fundamental.percentage, 0);
+             const averagePercentage = totalPercentage / topic.fundamentals.length;
+             topic.score = averagePercentage; // Armazena o valor numérico
+
+             console.log('Score calculado:', topic.score); // Log
+
+             // Re-renderiza os cartões para mostrar o score atualizado
+             renderTopicCards();
+        }
+
+        // --- Funções de Interação com a IA ---
+
+        // Função para obter fundamentos de um tópico da IA
+        async function getFundamentalsFromGemini(topicQuery) {
+             const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+             const prompt = `Você é um assistente de estudos. Liste os 5 a 8 fundamentos ou sub-tópicos essenciais para aprender sobre "${topicQuery}". Responda APENAS com uma lista numerada ou com marcadores, sem introdução ou conclusão. Exemplo: "- Fundamento 1\n- Fundamento 2" ou "1. Fundamento 1\n2. Fundamento 2".`;
+
+             console.log('Enviando para API Gemini (Fundamentos) com prompt:', prompt);
+
+             try {
+                 const response = await fetch(API_URL, {
+                     method: 'POST',
+                     headers: {
+                         'Content-Type': 'application/json',
+                     },
+                     body: JSON.stringify({
+                         contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                         generationConfig: {
+                             maxOutputTokens: 100, // Limita a resposta para focar nos fundamentos
+                             temperature: 0.7 // Um pouco mais criativo para listar fundamentos
+                         }
+                     }),
+                 });
+
+                 console.log('Resposta recebida da API Gemini (Fundamentos). Status:', response.status);
+
+                 if (!response.ok) {
+                     const error = await response.json();
+                     console.error('Erro da API Gemini (Fundamentos):', response.status, error);
+                     return []; // Retorna array vazio em caso de erro
+                 }
+
+                 const data = await response.json();
+                 console.log('Resposta da API Gemini (Fundamentos):', data);
+
+                 const rawResponseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                 console.log('Texto bruto da resposta da IA (Fundamentos):', rawResponseText);
+
+                 // --- Simulação de Parsing da Resposta da IA ---
+                 // Tenta extrair fundamentos de uma lista (numerada ou com marcadores)
+                 const fundamentals = rawResponseText.split('\n')
+                     .map(line => line.replace(/^[\s\d\-\*\.]+\s*/, '').trim()) // Remove marcadores/números e espaços
+                     .filter(line => line.length > 0) // Remove linhas vazias
+                     .map(name => ({ name: name, percentage: 0 })); // Cria o objeto de fundamento com 0%
+
+                 console.log('Fundamentos extraídos:', fundamentals);
+
+                 return fundamentals;
+
+             } catch (error) {
+                 console.error('Erro ao chamar a API Gemini (Fundamentos):', error);
+                 return []; // Retorna array vazio em caso de erro
+             }
+        }
+
+        // Função para simular a avaliação do conhecimento com base na mensagem do usuário
+        async function evaluateUserKnowledge(topic, userMessage) {
+             const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+             if (!topic.fundamentals || topic.fundamentals.length === 0) {
+                  console.log('Nenhum fundamento para avaliar.');
+                 return { changes: {}, masteredFundamentals: [] }; // Retorna objeto vazio e lista vazia
+             }
+
+             const fundamentalNames = topic.fundamentals.map(f => f.name).join(', ');
+
+             // PRONTO: Prompt modificado para considerar a dificuldade e a comprovação na resposta
+             const prompt = `Você é um assistente de estudos avaliando o conhecimento do usuário. O tópico atual é "${topic.title}". Considere que a dificuldade deste tópico pode influenciar o quanto uma resposta demonstra domínio. Os fundamentos que o usuário está aprendendo são: ${fundamentalNames}. A última mensagem do usuário foi: "${userMessage}". Analise esta mensagem para determinar o nível de compreensão demonstrado para cada fundamento. Se a mensagem for uma resposta a um exercício ou demonstrar conhecimento profundo, considere isso como uma "comprovação" e ajuste o aumento de progresso adequadamente. Para cada fundamento, indique uma mudança na porcentagem de progresso do usuário no formato "Nome do Fundamento: +/-Número". Se o usuário demonstrou ter aprendido completamente um fundamento, inclua uma linha no formato "FUNDAMENTO CONCLUÍDO: [Nome do Fundamento] - [Breve justificativa por que o usuário demonstrou domínio]". Responda APENAS com a lista de mudanças de porcentagem e as linhas de fundamentos concluídos, sem introdução ou conclusão. Exemplo: "Triângulo Equilátero: +10\nTriângulo Escaleno: -5\nFUNDAMENTO CONCLUÍDO: Triângulo Retângulo - O usuário explicou corretamente o teorema de Pitágoras."`;
+
+             console.log('Enviando para API Gemini (Avaliação) com prompt:', prompt);
+
+             try {
+                 const response = await fetch(API_URL, {
+                     method: 'POST',
+                     headers: {
+                         'Content-Type': 'application/json',
+                     },
+                     body: JSON.stringify({
+                         contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                         generationConfig: {
+                             maxOutputTokens: 200, // Aumentado para acomodar justificativas
+                             temperature: 0.3 // Menos criativo para focar na avaliação
+                         }
+                     }),
+                 });
+
+                 console.log('Resposta recebida da API Gemini (Avaliação). Status:', response.status);
+
+                 if (!response.ok) {
+                     const error = await response.json();
+                     console.error('Erro da API Gemini (Avaliação):', response.status, error);
+                     return { changes: {}, masteredFundamentals: [] }; // Retorna objeto vazio e lista vazia em caso de erro
+                 }
+
+                 const data = await response.json();
+                 console.log('Resposta da API Gemini (Avaliação):', data);
+
+                 const rawResponseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                 console.log('Texto bruto da resposta da IA (Avaliação):', rawResponseText);
+
+                 // --- Parsing da Resposta de Avaliação ---
+                 const changes = {};
+                 const masteredFundamentals = [];
+
+                 rawResponseText.split('\n').forEach(line => {
+                     const trimmedLine = line.trim();
+                     if (trimmedLine.toUpperCase().startsWith('FUNDAMENTO CONCLUÍDO:')) {
+                         // Parsing de fundamentos concluídos
+                         const parts = trimmedLine.substring('FUNDAMENTO CONCLUÍDO:'.length).split('-');
+                         if (parts.length >= 2) {
+                             const name = parts[0].trim();
+                             const justification = parts.slice(1).join('-').trim(); // Junta o resto caso a justificativa contenha '-'
+                             masteredFundamentals.push({ name: name, justification: justification });
+                             console.log(`FUNDAMENTO CONCLUÍDO detectado: "${name}" - "${justification}"`); // Log
+                         }
+                     } else {
+                         // Parsing de mudanças de porcentagem
+                         const parts = trimmedLine.split(':');
+                         if (parts.length === 2) {
+                             const name = parts[0].trim();
+                             const change = parseInt(parts[1].trim());
+                             if (!isNaN(change)) {
+                                 changes[name] = change;
+                                  console.log(`Mudança de porcentagem detectada: "${name}": ${change}`); // Log
+                             }
+                         }
+                     }
+                 });
+
+                 console.log('Mudanças de porcentagem extraídas:', changes);
+                 console.log('Fundamentos dominados extraídos:', masteredFundamentals);
+
+                 return { changes: changes, masteredFundamentals: masteredFundamentals };
+
+             } catch (error) {
+                 console.error('Erro ao chamar a API Gemini (Avaliação):', error);
+                 return { changes: {}, masteredFundamentals: [] }; // Retorna objeto vazio e lista vazia em caso de erro
+             }
+        }
+
+
+        // Função para enviar mensagem para a API do Gemini (Chat Principal)
+        async function sendMessageToGemini(messageText, conversationHistory) {
+            const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+            const formattedHistory = conversationHistory.map(msg => ({
+                role: msg.sender === 'user' ? 'user' : 'model',
+                parts: [{ text: msg.text }]
+            }));
+
+            // Inclui a instrução de persona no primeiro prompt do usuário, se o histórico estiver vazio
+            const initialPromptWithPersona = `Você é um assistente de estudos. Sua função é ajudar o usuário a aprender, sempre priorizando o conhecimento e a clareza das informações. Evite assuntos pessoais ou que não estejam diretamente relacionados ao estudo, mas mantenha um toneducado e prestativo. Agora, responda à seguinte mensagem do usuário:\n\n${messageText}`;
+
+            const contentsForApi = formattedHistory.length === 0
+                ? [{ role: 'user', parts: [{ text: initialPromptWithPersona }] }]
+                : [...formattedHistory, { role: 'user', parts: [{ text: messageText }] }];
+
+            console.log('Enviando para API Gemini (Chat):', contentsForApi);
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contents: contentsForApi,
+                    }),
+                });
+
+                console.log('Resposta recebida da API Gemini (Chat). Status:', response.status);
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    console.error('Erro da API Gemini (Chat):', response.status, error);
+                    return `Desculpe, não consegui obter uma resposta no momento. Erro da API: ${response.status} - ${error.error?.message || response.statusText}`;
+                }
+
+                const data = await response.json();
+                console.log('Resposta da API Gemini (Chat):', data);
+
+                const botResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, não consegui gerar uma resposta válida.";
+                console.log('Texto da resposta do bot:', botResponse);
+
+                return botResponse;
+
+            } catch (error) {
+                console.error('Erro ao chamar a API Gemini (Chat):', error);
+                return `Ocorreu um erro ao se comunicar com a IA. Erro: ${error.message}`;
+            }
+        }
+
+        // Função para obter um título de tópico da API do Gemini com base no histórico
+        async function getTopicTitleFromGemini(conversationHistory) {
+             const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+             const conversationTexts = conversationHistory.map(msg => `${msg.sender === 'user' ? 'Usuário' : 'IA'}: ${msg.text}`).join('\n');
+
+             const prompt = `Você é um assistente de estudos. Com base na seguinte conversa, crie um título conciso (máximo 5 palavras) que resuma o assunto principal. Responda APENAS com o título gerado, sem pontuação final ou frases introdutórias:\n\n${conversationTexts}`;
+
+             console.log('Enviando para API Gemini (Título) com prompt:', prompt);
+
+             try {
+                 const response = await fetch(API_URL, {
+                     method: 'POST',
+                     headers: {
+                         'Content-Type': 'application/json',
+                     },
+                     body: JSON.stringify({
+                         contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                         generationConfig: {
+                             maxOutputTokens: 20,
+                             temperature: 0.5
+                         }
+                     }),
+                 });
+
+                 console.log('Resposta recebida da API Gemini (Título). Status:', response.status);
+
+                 if (!response.ok) {
+                     const error = await response.json();
+                     console.error('Erro da API Gemini (Título):', response.status, error);
+                     return "Erro ao gerar título";
+                 }
+
+                 const data = await response.json();
+                 console.log('Resposta da API Gemini (Título):', data);
+
+                 let generatedTitle = data.candidates?.[0]?.content?.parts?.[0]?.text || "Título não gerado";
+
+                 generatedTitle = generatedTitle.replace(/^["']|["']$/g, '').replace(/[.!?]$/, '').trim();
+                 generatedTitle = generatedTitle.substring(0, 30);
+
+                 console.log('Título gerado e formatado:', generatedTitle);
+
+                 return generatedTitle;
+
+             } catch (error) {
+                 console.error('Erro ao chamar a API Gemini (Título):', error);
+                 return "Erro de conexão";
+             }
+        }
+
+        // Função para criar o indicador de digitação
+        function createTypingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.classList.add('typing-indicator');
+            indicator.innerHTML = '<span></span><span></span><span></span>';
+            indicator.id = 'bot-typing-indicator'; // Adiciona um ID para fácil remoção
+            return indicator;
+        }
+
+        // Função para remover o indicador de digitação
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('bot-typing-indicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        // --- Event Listeners ---
+
+        // Event listeners para os botões de ferramenta (agora na study-guide-view)
+        addPostItTool.addEventListener('click', () => activateTool('add-postit')); // Botão 1
+        pencilTool.addEventListener('click', () => activateTool('pencil')); // Botão 2
+        trashTool.addEventListener('click', () => activateTool('trash')); // Botão 3
+        brushTool.addEventListener('click', () => activateTool('brush')); // Botão 4
+        eraserTool.addEventListener('click', () => activateTool('eraser')); // Botão 5
+        undoTool.addEventListener('click', undoAction); // Botão 6
+        redoTool.addEventListener('click', redoAction); // Botão 7
+        prevWhiteboardTool.addEventListener('click', () => loadWhiteboardState(currentWhiteboardIndex - 1)); // Botão 8
+        nextWhiteboardTool.addEventListener('click', () => {
+             // Se houver um próximo quadro, carrega-o
+             if (currentWhiteboardIndex < whiteboards.length - 1) {
+                 loadWhiteboardState(currentWhiteboardIndex + 1);
+             } else {
+                 // Caso contrário, cria um novo quadro
+                 saveCurrentWhiteboardState(); // Salva o quadro atual antes de criar um novo
+                 whiteboards.push({
+                     postIts: [],
+                     drawingStrokes: [],
+                     undoStack: [],
+                     redoStack: []
+                 });
+                 loadWhiteboardState(whiteboards.length - 1); // Carrega o novo quadro
+             }
+        }); // Botão 9
+
+
+        // Event listeners para as opções de cor
+        colorOptions.forEach(option => {
+            option.addEventListener('click', (e) => {
+                 // Impede que o clique na cor propague para o quadro branco
+                 e.stopPropagation();
+                selectColor(option.dataset.color);
+                 // Não esconde o seletor de cor aqui, para permitir múltiplos cliques de cor
+            });
+        });
+
+         // Event listeners para as opções de tamanho
+         sizeOptions.forEach(option => {
+             option.addEventListener('click', (e) => {
+                  // Impede que o clique no tamanho propague para o quadro branco
+                  e.stopPropagation();
+                 selectSize(option.dataset.size);
+                 // Esconde o seletor de tamanho após selecionar um tamanho (opcional)
+                 // brushSizePicker.classList.add('hidden');
+                 // eraserSizePicker.classList.add('hidden');
+             });
+         });
+
+        // Event listeners para iniciar o arrasto ou desenho no quadro branco
+        whiteboard.addEventListener('mousedown', (e) => {
+            console.log('mousedown no quadro branco.'); // Log
+            const clickedPostIt = e.target.closest('.post-it');
+            const clickedResizeHandle = e.target.closest('.resize-handle');
+            const clickedPostItText = e.target.closest('.post-it-text'); // Verifica se clicou no div de texto
+            const clickedPostItTextarea = e.target.matches('textarea'); // Verifica se clicou na textarea
+
+
+            if (clickedResizeHandle) {
+                // Inicia o redimensionamento
+                console.log('mousedown no handle de redimensionamento.'); // Log
+                isResizingPostIt = true;
+                activeResizeHandle = e.target.closest('.resize-handle'); // Define o handle ativo
+                activePostIt = activeResizeHandle.parentNode; // Define o post-it ativo
+                initialMouseX = e.clientX;
+                initialMouseY = e.clientY;
+                initialPostItWidth = activePostIt.offsetWidth;
+                initialPostItHeight = activePostIt.offsetHeight;
+                activePostIt.style.cursor = 'se-resize';
+                activePostIt.style.zIndex = 1001;
+                e.preventDefault(); // Previne arrasto do post-it
+                e.stopPropagation(); // Impede que o evento propague para o quadro branco
+            } else if (clickedPostIt && !clickedResizeHandle && !clickedPostItText && !clickedPostItTextarea && activeTool !== 'trash') {
+                 // Inicia o arrasto se clicou em um post-it (e não no handle de redimensionamento, texto ou textarea)
+                 // E se a ferramenta de lixeira NÃO estiver ativa
+                 console.log('mousedown no post-it (não texto/handle), iniciando arrasto.'); // Log
+                 isDraggingPostIt = true;
+                 activePostIt = clickedPostIt;
+                 const rect = activePostIt.getBoundingClientRect();
+                 // Calcula o offset do ponto de clique/toque em relação ao canto superior esquerdo do post-it
+                 xOffset = e.clientX - rect.left;
+                 yOffset = e.clientY - rect.top;
+                  startLeft = activePostIt.style.left; // Captura a posição inicial
+                  startTop = activePostIt.style.top; // Captura a posição inicial
+                 activePostIt.style.cursor = 'grabbing';
+                 activePostIt.style.zIndex = 1000;
+                 e.preventDefault(); // Previne seleção de texto
+                 e.stopPropagation(); // Impede que o evento propague para o quadro branco
+            } else if (activeTool === 'brush' || activeTool === 'eraser') {
+                 // Inicia o desenho se a ferramenta de pincel ou borracha estiver ativa
+                 console.log('mousedown no quadro branco, iniciando desenho.'); // Log
+                 startDrawing(e); // Chama a função startDrawing existente
+            } else {
+                 console.log('mousedown no quadro branco, nenhuma ação iniciada.'); // Log
+            }
+        });
+
+         whiteboard.addEventListener('touchstart', (e) => {
+             console.log('touchstart no quadro branco.'); // Log
+             const clickedPostIt = e.target.closest('.post-it');
+             const clickedResizeHandle = e.target.closest('.resize-handle');
+             const clickedPostItText = e.target.closest('.post-it-text'); // Verifica se clicou no div de texto
+             const clickedPostItTextarea = e.target.matches('textarea'); // Verifica se clicou na textarea
+             const touch = e.touches[0];
+
+             if (!touch) return; // Sai se não houver toque válido
+
+             if (clickedResizeHandle) {
+                 // Inicia o redimensionamento
+                 console.log('touchstart no handle de redimensionamento.'); // Log
+                 isResizingPostIt = true;
+                 activeResizeHandle = e.target.closest('.resize-handle'); // Define o handle ativo
+                 activePostIt = activeResizeHandle.parentNode; // Define o post-it ativo
+                 initialMouseX = touch.clientX;
+                 initialMouseY = touch.clientY;
+                 initialPostItWidth = activePostIt.offsetWidth;
+                 initialPostItHeight = activePostIt.offsetHeight;
+                 activePostIt.style.cursor = 'se-resize'; // Muda o cursor durante o redimensionamento
+                 activePostIt.style.zIndex = 1001; // Ligeiramente maior que o z-index de arrasto
+                  e.preventDefault(); // Previne ações de toque padrão (como rolagem)
+                  e.stopPropagation(); // Impede que o evento propague para o quadro branco
+             } else if (clickedPostIt && !clickedResizeHandle && !clickedPostItText && !clickedPostItTextarea && activeTool !== 'trash') {
+                  // Inicia o arrasto se clicou em um post-it (e não no handle de redimensionamento, texto ou textarea)
+                  // E se a ferramenta de lixeira NÃO estiver ativa
+                  console.log('touchstart no post-it (não texto/handle), iniciando arrasto.'); // Log
+                  isDraggingPostIt = true;
+                  activePostIt = clickedPostIt;
+                  const rect = activePostIt.getBoundingClientRect();
+                  // Calcula o offset do ponto de clique/toque em relação ao canto superior esquerdo do post-it
+                  xOffset = touch.clientX - rect.left;
+                  yOffset = touch.clientY - rect.top;
+                   startLeft = activePostIt.style.left; // Captura a posição inicial
+                   startTop = activePostIt.style.top; // Captura a posição inicial
+                  activePostIt.style.cursor = 'grabbing';
+                  activePostIt.style.zIndex = 1000;
+                  e.preventDefault(); // Previne seleção de texto
+                  e.stopPropagation(); // Impede que o evento propague para o quadro branco
+             } else if (activeTool === 'brush' || activeTool === 'eraser') {
+                  // Inicia o desenho se a ferramenta de pincel ou borracha estiver ativa
+                  console.log('touchstart no quadro branco, iniciando desenho.'); // Log
+                  startDrawing(e); // Chama a função startDrawing existente
+             } else {
+                 console.log('touchstart no quadro branco, nenhuma ação iniciada.'); // Log
+             }
+         });
+
+
+        // Event listeners para continuar o arrasto, redimensionamento ou desenho (globais no document)
+        document.addEventListener('mousemove', dragOrDraw);
+        document.addEventListener('touchmove', dragOrDraw);
+
+        // Event listeners para parar arrasto, redimensionamento ou desenho (globais no document)
+        document.addEventListener('mouseup', () => {
+             stopDraggingPostIt();
+             stopResizingPostIt();
+             stopDrawing(); // Certifica-se de parar o desenho também
+        });
+        document.addEventListener('touchend', () => {
+             stopDraggingPostIt();
+             stopResizingPostIt();
+             stopDrawing(); // Certifica-se de parar o desenho também
+        });
+        document.addEventListener('touchcancel', () => {
+             stopDraggingPostIt();
+             stopResizingPostIt();
+             stopDrawing(); // Certifica-se de parar o desenho também
+        });
+
+
+        // Event listener para navegar para a tela de chat
+        topicCardsContainer.addEventListener('click', (e) => {
+            // Verifica se o contêiner estava sendo arrastado. Se sim, ignora o clique para evitar abrir o chat acidentalmente.
+            if (isContainerDragging) {
+                 console.log('Clique no cartão ignorado devido a arrasto ativo.'); // Log
+                 return;
+            }
+            const card = e.target.closest('.topic-card');
+            if (card) {
+                const topicId = card.dataset.chatId; // Pega o ID do chat do dataset
+                const topic = topics.find(t => t.id === topicId);
+                if (topic) {
+                    showView('chat-view'); // Vai para a tela de chat
+                    chatTitle.textContent = topic.title; // Atualiza o título da tela de chat
+                    currentChatId = topic.id;
+                    renderMessages(topic.messages); // Carrega as mensagens do chat do tópico selecionado
+                    renderFundamentalsSidebar(topic.fundamentals); // Carrega e renderiza os fundamentos
+                }
+            }
+        });
+
+         // Event listener para voltar do chat para o guia de estudo
+         backToGuideFromChatButton.addEventListener('click', async () => {
+             console.log('Botão voltar clicado. currentChatId:', currentChatId); // Log
+             // Antes de voltar, gera o título do tópico com base na conversa
+             if (currentChatId) {
+                 const currentTopic = topics.find(t => t.id === currentChatId);
+                 if (currentTopic) {
+                     console.log('Tópico atual encontrado:', currentTopic.title); // Log
+                     if (currentTopic.messages.length > 0) {
+                         console.log('Tópico tem mensagens, gerando título...'); // Log
+                         // Opcional: Mostrar um indicador de "Gerando Título" na tela do chat antes de voltar
+                         const originalChatTitle = chatTitle.textContent;
+                         chatTitle.textContent = 'Finalizando Tópico...'; // Feedback visual
+
+                         const generatedTitle = await getTopicTitleFromGemini(currentTopic.messages);
+                         console.log('Título gerado:', generatedTitle); // Log
+
+                         // Atualiza o título do tópico e renderiza os cartões
+                         currentTopic.title = generatedTitle;
+                         // O score já é atualizado ao modificar os fundamentos, então apenas re-renderiza os cartões
+                         updateTopicScore(currentTopic); // Garante que o score seja calculado com os fundamentos atuais
+                         renderTopicCards(); // Atualiza o cartão na lista do guia de estudo
+
+                         // Restaura o título do chat (será substituído pela tela do guia de estudo)
+                         chatTitle.textContent = originalChatTitle;
+                     } else {
+                          console.log('Tópico sem mensagens, não gerando título.'); // Log
+                          // Se não houver mensagens, pode manter o título padrão ou definir um diferente
+                          // currentTopic.title = 'Tópico Vazio'; // Exemplo
+                           updateTopicScore(currentTopic); // Garante que o score seja N/A se não houver fundamentos
+                          renderTopicCards(); // Renderiza para garantir consistência
+                     }
+                 } else {
+                     console.log('Tópico atual não encontrado.'); // Log
+                 }
+                 currentChatId = null; // Limpa o ID do chat atual ao sair
+                 console.log('currentChatId limpo.'); // Log
+             } else {
+                 console.log('currentChatId é null, não há tópico para finalizar.'); // Log
+             }
+             showView('study-guide-view'); // Volta para a tela do Guia de Estudo
+             console.log('Voltando para a view do guia de estudo.'); // Log
+         });
+
+        // Função para enviar mensagem
+        sendButton.addEventListener('click', async () => {
+            const messageText = messageInput.value.trim();
+            if (messageText && currentChatId) {
+                const currentTopic = topics.find(t => t.id === currentChatId);
+                if (currentTopic) {
+                    // Adicionar a mensagem do usuário ao histórico
+                    currentTopic.messages.push({ sender: 'user', text: messageText });
+                    currentTopic.messageCount++; // Incrementa o contador de mensagens
+
+                    renderMessages(currentTopic.messages); // Renderiza novamente as mensagens
+
+                    // Limpa o input imediatamente
+                    messageInput.value = '';
+
+                    // Adiciona o indicador de digitação para a resposta do chat principal
+                    const typingIndicator = createTypingIndicator();
+                    chatMessages.appendChild(typingIndicator);
+                    chatMessages.scrollTop = chatMessages.scrollHeight; // Rola para ver o indicador
+
+                    // Desabilita o input e o botão de enviar enquanto espera a resposta
+                    messageInput.disabled = true;
+                    sendButton.disabled = true;
+
+                     // --- Lógica de Interação com a IA para Fundamentos e Avaliação ---
+
+                     // Obter fundamentos iniciais se for a primeira interação no chat
+                     if (currentTopic.needsInitialFundamentals) {
+                          console.log('Obtendo fundamentos iniciais da IA...');
+                         const fundamentals = await getFundamentalsFromGemini(currentTopic.messages[0].text); // Usa a primeira mensagem do usuário como query
+                         currentTopic.fundamentals = fundamentals;
+                         renderFundamentalsSidebar(currentTopic.fundamentals);
+                         updateTopicScore(currentTopic);
+                         currentTopic.needsInitialFundamentals = false; // Desativa a flag
+                          console.log('Fundamentos iniciais carregados e renderizados.');
+                     }
+
+                     // Simular avaliação do conhecimento com base na mensagem do usuário
+                     console.log('Simulando avaliação de conhecimento com base na mensagem do usuário...');
+                     const evaluationResult = await evaluateUserKnowledge(currentTopic, messageText);
+
+                     let evaluationFeedback = ''; // String para armazenar o feedback da avaliação
+
+                     // Aplica as mudanças de porcentagem recebidas da IA
+                     if (currentTopic.fundamentals) {
+                         // Primeiro, aplica as mudanças de porcentagem individuais
+                         currentTopic.fundamentals.forEach(fundamental => {
+                             if (evaluationResult.changes.hasOwnProperty(fundamental.name)) {
+                                 const change = evaluationResult.changes[fundamental.name];
+                                 fundamental.percentage = Math.max(0, Math.min(100, fundamental.percentage + change));
+                                 console.log(`Progresso atualizado para "${fundamental.name}": ${fundamental.percentage}% (Mudança: ${change})`);
+                             }
+                         });
+
+                         // Em seguida, define para 100% os fundamentos que foram explicitamente marcados como dominados
+                         evaluationResult.masteredFundamentals.forEach(mastered => {
+                              const fundamental = currentTopic.fundamentals.find(f => f.name === mastered.name);
+                              if (fundamental) {
+                                  fundamental.percentage = 100;
+                                  console.log(`Fundamento "${fundamental.name}" definido para 100% (Dominado).`); // Log
+                                  // Adiciona a justificativa ao feedback
+                                  evaluationFeedback += `\n\n✅ Você demonstrou domínio em "${mastered.name}": ${mastered.justification}`;
+                              } else {
+                                   console.warn(`Fundamento dominado "${mastered.name}" não encontrado na lista de fundamentos.`); // Log de aviso
+                              }
+                         });
+
+
+                         // Re-renderiza a barra lateral e atualiza o score após aplicar as mudanças
+                         renderFundamentalsSidebar(currentTopic.fundamentals);
+                         updateTopicScore(currentTopic);
+                     } else {
+                          console.log('Nenhum fundamento disponível para avaliação.');
+                     }
+
+
+                    // Enviar mensagem para a API do Gemini e obter a resposta (continua a conversa)
+                    const botResponse = await sendMessageToGemini(messageText, currentTopic.messages);
+
+                    // Remove o indicador de digitação
+                    removeTypingIndicator();
+
+                    // Habilita o input e o botão de enviar novamente
+                    messageInput.disabled = false;
+                    sendButton.disabled = false;
+
+                    // Adicionar a resposta da IA ao histórico (se houver)
+                    if (botResponse) {
+                         // Combina a resposta do bot com o feedback da avaliação, se houver
+                         const finalBotResponse = botResponse + evaluationFeedback;
+                         currentTopic.messages.push({ sender: 'bot', text: finalBotResponse });
+                         renderMessages(currentTopic.messages); // Renderiza novamente para incluir a resposta da IA
+                    }
+
+                     // Rola para a última mensagem novamente após a resposta
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                     // --- Fim da Lógica de Interação com a IA ---
+                }
+            }
+        });
+
+        // Permite enviar mensagem pressionando Enter
+        messageInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter' && !messageInput.disabled) { // Verifica se o input não está desabilitado
+                event.preventDefault(); // Previne a quebra de linha padrão
+                sendButton.click(); // Simula o clique no botão de enviar
+            }
+        });
+
+
+        // --- Funcionalidade da Primeira Barra de Pesquisa (Criar Tópico e Navegar) ---
+        learnSearchInput.addEventListener('keypress', async function(event) { // Adicionado 'async' aqui
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Previne a quebra de linha padrão
+                const searchTerm = learnSearchInput.value.trim();
+
+                if (searchTerm !== '') {
+                    const newTopicId = `chat_${Date.now()}`; // ID único para o novo chat
+                    const newTopic = {
+                        title: searchTerm.substring(0, 30) + (searchTerm.length > 30 ? '...' : ''), // Título inicial baseado na busca
+                        id: newTopicId,
+                        score: 0, // Score inicial 0
+                        messages: [{ sender: 'user', text: searchTerm }], // Primeira mensagem é a busca do usuário
+                         fundamentals: [], // Array vazio para fundamentos
+                         needsInitialFundamentals: true, // Flag para obter fundamentos iniciais
+                         messageCount: 0 // Contador de mensagens
+                    };
+
+                    topics.push(newTopic); // Adiciona o novo tema ao array
+                    updateTopicScore(newTopic); // Calcula o score inicial (0) e renderiza
+                    learnSearchInput.value = ''; // Limpa o input da barra de pesquisa
+
+                    console.log('Novo tema criado pela barra de pesquisa:', newTopic); // Log
+
+                    // Navegar para o novo chat imediatamente
+                    showView('chat-view');
+                    chatTitle.textContent = newTopic.title;
+                    currentChatId = newTopic.id;
+                    renderMessages(newTopic.messages); // Renderiza a primeira mensagem do usuário
+                    renderFundamentalsSidebar(newTopic.fundamentals); // Renderiza a barra lateral (vazia inicialmente)
+
+                    // Enviar a primeira mensagem automaticamente para a API
+                    // Adiciona o indicador de digitação para a resposta do chat principal
+                    const typingIndicator = createTypingIndicator();
+                    chatMessages.appendChild(typingIndicator);
+                    chatMessages.scrollTop = chatMessages.scrollHeight; // Rola para ver o indicador
+
+                    // Desabilita o input e o botão de enviar enquanto espera a resposta
+                    messageInput.disabled = true;
+                    sendButton.disabled = true;
+
+                    // Enviar mensagem para a API do Gemini e obter a resposta
+                    const botResponse = await sendMessageToGemini(searchTerm, newTopic.messages); // Usa searchTerm e o array de mensagens do novo tópico
+
+                    // Remove o indicador de digitação
+                    removeTypingIndicator();
+
+                    // Habilita o input e o botão de enviar novamente
+                    messageInput.disabled = false;
+                    sendButton.disabled = false;
+
+                    // Adicionar a resposta da IA ao histórico (se houver)
+                    if (botResponse) {
+                         newTopic.messages.push({ sender: 'bot', text: botResponse });
+                         renderMessages(newTopic.messages); // Renderiza novamente para incluir a resposta da IA
+                    }
+
+                     // Rola para a última mensagem novamente após a resposta
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                     // --- Lógica de Interação com a IA para Fundamentos ---
+                     // Obter fundamentos iniciais após a primeira resposta do bot
+                     if (newTopic.needsInitialFundamentals) {
+                          console.log('Obtendo fundamentos iniciais da IA (via barra de pesquisa)...');
+                         const fundamentals = await getFundamentalsFromGemini(newTopic.messages[0].text); // Usa a primeira mensagem do usuário como query
+                         newTopic.fundamentals = fundamentals;
+                         renderFundamentalsSidebar(newTopic.fundamentals);
+                         updateTopicScore(newTopic);
+                         newTopic.needsInitialFundamentals = false; // Desativa a flag
+                          console.log('Fundamentos iniciais carregados e renderizados (via barra de pesquisa).');
+                     }
+                     // A lógica de teste periódico será acionada nas mensagens subsequentes no event listener do sendButton
+                     // --- Fim da Lógica de Interação com a IA ---
+                }
+            }
+        });
+
+
+        // --- Funcionalidade da Segunda Barra de Pesquisa (Filtrar Tópicos) ---
+        topicSearchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase(); // Termo de pesquisa em minúsculas
+            if (searchTerm === '') {
+                renderTopicCards(topics); // Se a pesquisa estiver vazia, mostra todos os tópicos
+            } else {
+                const filteredTopics = topics.filter(topic => {
+                    // 1. Pesquisar no título do tópico
+                    const titleMatch = topic.title.toLowerCase().includes(searchTerm);
+
+                    // 2. Pesquisar no contexto/mensagens da conversa
+                    const messagesMatch = topic.messages.some(message =>
+                        message.text.toLowerCase().includes(searchTerm)
+                    );
+
+                     // 3. Pesquisar nos nomes dos fundamentos
+                     const fundamentalsMatch = topic.fundamentals && topic.fundamentals.some(fundamental =>
+                         fundamental.name.toLowerCase().includes(searchTerm)
+                     );
+
+
+                    return titleMatch || messagesMatch || fundamentalsMatch; // Retorna true se encontrar em qualquer um
+                });
+                renderTopicCards(filteredTopics); // Renderiza apenas os tópicos filtrados
+            }
+        });
+
+
+        // Inicializa a aplicação exibindo o Guia de Estudo e renderizando os cartões
+        document.addEventListener('DOMContentLoaded', () => {
+            renderTopicCards(); // Renderiza a lista de cartões (agora vazia por padrão)
+            showView('study-guide-view'); // Garante que o Guia de Estudo seja exibido ao carregar
+            // Redimensionar o canvas inicialmente
+             resizeCanvas();
+             updateUndoRedoButtons(); // Atualiza o estado inicial dos botões undo/redo
+        });
+
+         // Redimensionar o canvas quando a janela for redimensionada
+         window.addEventListener('resize', () => {
+            resizeCanvas();
+            redrawDrawing(); // Redraw drawing on resize to prevent distortion
+         });
+
+    </script>
+</body>
+</html>
